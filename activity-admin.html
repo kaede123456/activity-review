@@ -51,6 +51,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .nav-btn{flex:1;padding:10px;background:#f3f4f6;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
 .nav-btn.active{background:#8b5cf6;color:#fff}
 .hidden{display:none}
+.upload-preview{max-width:100%;border-radius:8px;margin:10px 0;border:2px dashed #ddd6fe;padding:10px;text-align:center}
+.upload-preview img{max-width:100%;border-radius:8px}
 </style>
 </head>
 <body>
@@ -76,7 +78,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <button class="nav-btn" onclick="switchView('config')" id="navConfig">⚙️ 配置管理</button>
 </div>
 
-<!-- 审核管理 -->
 <div id="reviewView">
 <div class="card">
 <div class="card-title">📈 审核统计</div>
@@ -94,7 +95,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 </div>
 </div>
 
-<!-- 配置管理 -->
 <div id="configView" class="hidden">
 <div class="editor-section">
 <div class="editor-title">🎨 活动配置</div>
@@ -115,6 +115,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <div class="editor-group"><label class="editor-label">敏感词（检测到直接拒绝）</label><textarea class="editor-textarea" id="kw_ban" style="min-height:80px;"></textarea></div>
 <button class="btn btn-green" onclick="saveKeywords()">保存关键词</button>
 </div>
+
+<div class="editor-section">
+<div class="editor-title">🎁 成功页面图片配置</div>
+<div class="editor-group">
+<label class="editor-label">上传成功页面显示的图片</label>
+<div id="currentSuccessImg" class="upload-preview" style="display:none;"></div>
+<div style="border:2px dashed #ddd6fe;padding:20px;border-radius:8px;text-align:center;margin:10px 0;">
+<div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+<input type="file" id="successImgInput" accept="image/*" onchange="handleSuccessImg(this.files[0])" style="display:none;">
+<button class="btn btn-purple" onclick="document.getElementById('successImgInput').click()" style="margin:0;">上传图片</button>
+</div>
+<div id="successImgPreview" class="upload-preview" style="display:none;"></div>
+</div>
+<div class="editor-group"><label class="editor-label">图片链接（也可直接粘贴图片URL）</label><input type="text" class="editor-input" id="successImgUrl" placeholder="直接粘贴图片URL" onchange="previewSuccessImgUrl()"></div>
+<button class="btn btn-green" onclick="saveSuccessImg()">保存成功页面图片</button>
+<button class="btn btn-gray" onclick="clearSuccessImg()" style="margin-top:10px;">清除图片</button>
+</div>
 </div>
 
 <button class="btn btn-gray" onclick="logout()" style="margin-top:20px;">退出登录</button>
@@ -134,6 +151,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 var DEFAULT_PASSWORD = "admin123";
 var currentTab="pending";
 var currentView="review";
+var successImgData=null;
 var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
 var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 
@@ -149,6 +167,7 @@ var c=localStorage.getItem("cfg");
 if(c)cfg=JSON.parse(c);
 var k=localStorage.getItem("aiKeywords");
 if(k)aiKeywords=JSON.parse(k);
+loadSuccessImgPreview();
 }
 
 function toast(msg){
@@ -229,6 +248,60 @@ localStorage.setItem("aiKeywords",JSON.stringify(aiKeywords));
 toast("关键词已保存");
 }
 
+function handleSuccessImg(file){
+if(!file)return;
+var reader=new FileReader();
+reader.onload=function(e){
+successImgData=e.target.result;
+document.getElementById("successImgUrl").value="";
+document.getElementById("successImgPreview").innerHTML='<img src="'+successImgData+'" alt="预览">';
+document.getElementById("successImgPreview").style.display="block";
+};
+reader.readAsDataURL(file);
+}
+
+function previewSuccessImgUrl(){
+var url=document.getElementById("successImgUrl").value.trim();
+if(url){
+successImgData=null;
+document.getElementById("successImgPreview").innerHTML='<img src="'+url+'" alt="预览" onerror="this.parentElement.innerHTML=\'图片加载失败\'">';
+document.getElementById("successImgPreview").style.display="block";
+}
+}
+
+function loadSuccessImgPreview(){
+var img=localStorage.getItem("successPageImg");
+if(img){
+document.getElementById("currentSuccessImg").innerHTML='<div style="color:#666;margin-bottom:5px;">当前图片：</div><img src="'+img+'" alt="当前">';
+document.getElementById("currentSuccessImg").style.display="block";
+}
+}
+
+function saveSuccessImg(){
+var url=document.getElementById("successImgUrl").value.trim();
+var imgToSave=successImgData||url;
+if(imgToSave){
+localStorage.setItem("successPageImg",imgToSave);
+toast("成功页面图片已保存");
+loadSuccessImgPreview();
+document.getElementById("successImgPreview").style.display="none";
+successImgData=null;
+}else{
+toast("请上传图片或输入图片URL");
+}
+}
+
+function clearSuccessImg(){
+if(!confirm("确定清除成功页面图片吗？"))return;
+localStorage.removeItem("successPageImg");
+document.getElementById("successImgUrl").value="";
+document.getElementById("successImgPreview").innerHTML="";
+document.getElementById("successImgPreview").style.display="none";
+document.getElementById("currentSuccessImg").style.display="none";
+successImgData=null;
+toast("图片已清除");
+}
+
 async function getSubmissions(){
 try{
 const res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc',{
@@ -257,9 +330,7 @@ return res.ok;
 }catch(e){return false;}
 }
 
-async function loadData(){
-await renderAdmin();
-}
+async function loadData(){await renderAdmin();}
 
 async function renderAdmin(){
 var subs=await getSubmissions();
