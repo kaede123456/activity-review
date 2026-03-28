@@ -31,7 +31,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .modal-overlay.show{display:flex}
 .modal{background:#fff;border-radius:16px;padding:20px;max-width:90%;max-height:85vh;overflow-y:auto;width:340px}
 .modal-title{font-size:18px;font-weight:700;color:#333;margin-bottom:15px;text-align:center}
-.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:#fff;padding:15px 30px;border-radius:10px;z-index:10000;font-size:14px;opacity:0;transition:opacity 0.3s}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:#fff;padding:15px 30px;border-radius:10px;z-index:10000;font-size:14px;opacity:0;transition:opacity 0.3s;white-space:nowrap}
 .toast.show{opacity:1}
 .upload-area{border:2px dashed #ddd6fe;padding:30px;border-radius:12px;text-align:center;cursor:pointer;margin:10px 0}
 .upload-area:hover{border-color:#8b5cf6;background:#f5f3ff}
@@ -39,7 +39,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .keyword-tag.red{background:#dc3545}
 .success-page{background:#fff;border-radius:18px;padding:30px;margin-bottom:14px;box-shadow:0 8px 24px rgba(124,58,237,0.08);text-align:center}
 .success-image{max-width:100%;border-radius:12px;margin:20px 0;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-.auto-check{background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 15px;border-radius:10px;font-size:13px;margin:10px 0;}
+.auto-check{background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:15px;border-radius:10px;font-size:14px;margin:10px 0;}
+.dot{animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 </style>
 </head>
 <body>
@@ -54,25 +56,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
-const SUPABASE_URL = 'https://duxryudlekdvmktreqfe.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
+const SUPABASE_URL='https://duxryudlekdvmktreqfe.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
 
 var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
 var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 var status="tasks",selectedFile=null,selectedTask=null;
-var checkInterval=null;
+var checkInterval=null,lastCheckTime=0;
 
 function loadCfg(){var c=localStorage.getItem("cfg");if(c)cfg=JSON.parse(c);var k=localStorage.getItem("aiKeywords");if(k)aiKeywords=JSON.parse(k);}
 loadCfg();
 
-function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},3000);}
 function modal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").classList.add("show");}
 function closeModal(){document.getElementById("modal").classList.remove("show");selectedFile=null;}
 document.getElementById("modal").onclick=function(e){if(e.target===this)closeModal();};
 
 async function saveToCloud(sub){
 try{
-const res=await fetch(SUPABASE_URL+'/rest/v1/submissions',{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions',{
 method:'POST',
 headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=representation'},
 body:JSON.stringify({task_type:sub.taskType,task_name:sub.taskName,image:sub.image,status:'pending'})
@@ -83,28 +85,18 @@ return res.ok;
 
 async function checkMyStatus(){
 try{
-const res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc&limit=10',{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?status=eq.passed&order=created_at.desc&limit=5',{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
-const subs=await res.json();
-const reviewed=subs.filter(function(s){return s.status!=='pending'});
-if(reviewed.length>0){
-var latest=reviewed[0];
-if(latest.status==='passed'){
+var subs=await res.json();
+if(subs.length>0){
 status="passed";
 localStorage.setItem("verifyCode",generateCode());
 stopAutoCheck();
 render();
-toast("恭喜！审核已通过！");
+modal("🎉 审核通过！","<div style='text-align:center;'><div style='font-size:64px;'>🎉</div><div style='font-size:18px;font-weight:700;color:#28a745;margin:15px 0;'>恭喜您，审核已通过！</div><button class='btn btn-green' onclick='closeModal()' style='margin-top:15px;'>查看结果</button></div>");
 return true;
-}else{
-stopAutoCheck();
-status="rejected";
-render();
-toast("很遗憾，审核未通过");
-return true;
-}
 }
 }
 }catch(e){console.error(e);}
@@ -113,10 +105,11 @@ return false;
 
 function startAutoCheck(){
 stopAutoCheck();
+toast("已开启自动检查...");
 checkInterval=setInterval(async function(){
-var changed=await checkMyStatus();
-if(changed)stopAutoCheck();
-},5000);
+var found=await checkMyStatus();
+if(found)stopAutoCheck();
+},3000);
 }
 
 function stopAutoCheck(){
@@ -125,7 +118,7 @@ if(checkInterval){clearInterval(checkInterval);checkInterval=null;}
 
 function render(){
 var el=document.getElementById("app");
-if(status==="submitted"){el.innerHTML=renderSubmitted();startAutoCheck();}
+if(status==="submitted"){el.innerHTML=renderSubmitted();}
 else if(status==="passed"){el.innerHTML=renderSuccessPage();stopAutoCheck();}
 else{el.innerHTML=renderTasks();stopAutoCheck();}
 }
@@ -138,12 +131,16 @@ return'<div class="header"><h1>'+cfg.title+'</h1><p>'+cfg.subTitle+'</p></div>'+
 }
 
 function renderSubmitted(){
-return'<div class="header"><h1>'+cfg.title+'</h1></div>'+
-'<div class="status-box"><div class="status-icon">⏰</div><div class="status-text">已提交，等待审核</div>'+
-'<div class="auto-check">🔄 系统每5秒自动检查一次审核状态<br>审核通过后会立即跳转</div>'+
-'<div class="tips">您的任务截图已提交，正在排队等待管理员审核。</div>'+
-'<button class="btn btn-green" onclick="checkStatus()" style="margin-top:10px;">🔄 立即检查状态</button>'+
-'<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:10px;">返回首页</button></div>';
+var html='<div class="header"><h1>'+cfg.title+'</h1></div>';
+html+='<div class="status-box">';
+html+='<div class="status-icon"><span class="dot">⏰</span></div>';
+html+='<div class="status-text">已提交，等待审核</div>';
+html+='<div class="auto-check">🔔 请保持此页面开启<br>审核通过后会<span style="color:#dc3545;font-weight:700;">自动弹窗提醒</span></div>';
+html+='<div class="tips">您的任务截图已提交，正在排队等待管理员审核。<br>审核结果会第一时间通知您。</div>';
+html+='<button class="btn btn-green" onclick="manualCheck()" style="margin-top:10px;">🔄 立即检查</button>';
+html+='<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:10px;">返回首页</button>';
+html+='</div>';
+return html;
 }
 
 function renderSuccessPage(){
@@ -163,9 +160,7 @@ html+='</div>';
 return html;
 }
 
-function generateCode(){
-return"DEMO"+Math.random().toString(36).substr(2,6).toUpperCase();
-}
+function generateCode(){return"DEMO"+Math.random().toString(36).substr(2,6).toUpperCase();}
 
 function startTask(type){
 selectedTask=type;
@@ -174,9 +169,9 @@ var auditLabel=type===1?'<span class="badge badge-ai">AI审核</span>':'<span cl
 var kwHtml='';
 if(type===1){
 kwHtml='<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin:10px 0;font-size:12px;"><strong>必须包含：</strong>';
-for(var i=0;i<aiKeywords.required.length;i++){kwHtml+='<span class="keyword-tag">'+aiKeywords.required[i]+'</span>';}
+for(var i=0;i<aiKeywords.required.length;i++){kwHtml+='<span class="keyword-tag">'+aiKeywords.required[i]+'</span> ';}
 kwHtml+='<br><strong style="color:#dc3545;">敏感词：</strong>';
-for(var i=0;i<aiKeywords.ban.length;i++){kwHtml+='<span class="keyword-tag red">'+aiKeywords.ban[i]+'</span>';}
+for(var i=0;i<aiKeywords.ban.length;i++){kwHtml+='<span class="keyword-tag red">'+aiKeywords.ban[i]+'</span> ';}
 kwHtml+='</div>';
 }
 var body='<p style="text-align:center;color:#666;margin-bottom:10px;">'+names[type]+' '+auditLabel+'</p>'+kwHtml+
@@ -200,8 +195,8 @@ reader.readAsDataURL(file);
 
 async function doAIReview(imageData){
 try{
-const result=await Tesseract.recognize(imageData,'chi_sim+eng',{logger:m=>console.log(m.status)});
-const text=result.data.text;
+var result=await Tesseract.recognize(imageData,'chi_sim+eng',{logger:m=>console.log(m.status)});
+var text=result.data.text;
 var matched=[],missing=[],banned=[];
 for(var i=0;i<aiKeywords.required.length;i++){if(text.indexOf(aiKeywords.required[i])>=0){matched.push(aiKeywords.required[i]);}else{missing.push(aiKeywords.required[i]);}}
 for(var i=0;i<aiKeywords.ban.length;i++){if(text.indexOf(aiKeywords.ban[i])>=0){banned.push(aiKeywords.ban[i]);}}
@@ -214,32 +209,30 @@ if(!selectedFile){toast("请先上传图片");return;}
 var imageData=await new Promise(function(resolve){var reader=new FileReader();reader.onload=function(e){resolve(e.target.result);};reader.readAsDataURL(selectedFile);});
 closeModal();
 if(selectedTask===1){
-modal("AI审核中",'<div style="text-align:center;padding:40px;"><div style="font-size:48px;">🤖</div><div style="margin-top:20px;">正在识别图片文字...</div><div style="color:#999;font-size:12px;margin-top:10px;">首次使用需下载模型</div></div>');
+modal("AI审核中","<div style='text-align:center;padding:40px;'><div style='font-size:48px;'>🤖</div><div style='margin-top:20px;'>正在识别图片文字...</div></div>");
 var result=await doAIReview(imageData);
 closeModal();
-if(result.error){modal("审核错误",'<div style="text-align:center;"><div style="font-size:48px;">⚠️</div><div>'+result.error+'</div><button class="btn btn-gray" onclick="closeModal()">关闭</button></div>');}
+if(result.error){modal("审核错误","<div style='text-align:center;'><div style='font-size:48px;'>⚠️</div><div>"+result.error+"</div><button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>");}
 else if(result.pass){status="passed";localStorage.setItem("verifyCode",generateCode());render();toast("审核通过！");}
-else{var html='<div style="text-align:center;"><div style="font-size:48px;">❌</div><div style="font-weight:700;">审核未通过</div>';if(result.missing.length>0)html+='<div style="color:#dc3545;">缺少:'+result.missing.join(", ")+'</div>';if(result.banned.length>0)html+='<div style="color:#dc3545;">敏感词:'+result.banned.join(", ")+'</div>';html+='<button class="btn btn-gray" onclick="closeModal()">关闭</button></div>';modal("AI审核结果",html);}
+else{var html="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;'>审核未通过</div>";if(result.missing.length>0)html+="<div style='color:#dc3545;'>缺少:"+result.missing.join(", ")+"</div>";if(result.banned.length>0)html+="<div style='color:#dc3545;'>敏感词:"+result.banned.join(", ")+"</div>";html+="<button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>";modal("AI审核结果",html);}
 }else{
 var sub={taskType:selectedTask,taskName:{1:cfg.task1Title,2:cfg.task2Title,3:cfg.task3Title}[selectedTask],image:imageData};
 var ok=await saveToCloud(sub);
-if(ok){status="submitted";render();toast("提交成功，系统将自动检查审核状态！");}else{toast("提交失败，请重试");}
+if(ok){status="submitted";render();startAutoCheck();toast("提交成功，已开启自动检查！");}else{toast("提交失败，请重试");}
 }
 }
 
-async function checkStatus(){
+async function manualCheck(){
 toast("正在检查...");
-var changed=await checkMyStatus();
-if(!changed){toast("还在审核中，请稍候...");}
+var found=await checkMyStatus();
+if(!found){toast("还在审核中，请耐心等待...");}
 }
 
 function copyCode(){
 var code=localStorage.getItem("verifyCode")||"ERROR";
-navigator.clipboard.writeText(code);
-toast("验证码已复制！");
+navigator.clipboard.writeText(code).then(function(){toast("验证码已复制！");}).catch(function(){toast("复制失败，请手动复制");});
 }
 
-// 页面离开时停止检查
 window.onbeforeunload=function(){stopAutoCheck();};
 
 render();
