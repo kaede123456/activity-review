@@ -163,10 +163,7 @@ html+='<img src="'+successImg+'" class="success-image" alt="成功图片">';
 }else{
 html+='<div style="padding:30px;color:#999;font-size:14px;">管理员暂未设置展示图片</div>';
 }
-html+='<div class="tips" style="background:#d1fae5;border-color:#6ee7b7;">恭喜您完成任务！请截图或复制下方验证码</div>';
-html+='<div class="verify-code">'+verifyCode+'</div>';
-html+='<button class="btn btn-green" onclick="copyCode()" style="height:50px;line-height:50px;font-size:18px;border-radius:25px;">📋 复制验证码</button>';
-html+='<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:15px;">返回首页</button>';
+html+='<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:20px;">返回首页</button>';
 html+='</div>';
 return html;
 }
