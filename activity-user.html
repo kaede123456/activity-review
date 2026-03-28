@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>活动中心</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-gradient(180deg,#f5f3ff 0%,#ede9fe 100%);min-height:100vh;padding:15px 10px 80px}
+.container{max-width:600px;margin:0 auto}
+.header{text-align:center;padding:15px 0}
+.header h1{color:#b91c1c;font-size:22px;font-weight:800}
+.header p{color:#250ea7;font-size:16px;margin-top:5px}
+.card{background:#fff;border-radius:18px;padding:20px;margin-bottom:14px;box-shadow:0 8px 24px rgba(124,58,237,0.08);border:1px solid rgba(139,92,246,0.15)}
+.card-title{font-size:17px;font-weight:700;color:#1a1a1a;margin-bottom:8px}
+.card-desc{color:#666;line-height:1.7;margin-bottom:16px;font-size:14px;background:#f5f3ff;padding:14px;border-radius:10px;border-left:3px solid #8b5cf6}
+.btn{display:block;width:100%;padding:12px 20px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:15px;cursor:pointer;text-align:center;margin-top:10px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(234,88,12,0.3)}
+.btn-green{background:linear-gradient(135deg,#28a745,#1e7e34)}
+.btn-red{background:linear-gradient(135deg,#dc3545,#c82333)}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-left:8px}
+.badge-ai{background:#fef3c7;color:#d97706}
+.badge-human{background:#dbeafe;color:#2563eb}
+.status-box{text-align:center;padding:30px 20px;background:#fff;border-radius:18px;box-shadow:0 8px 24px rgba(124,58,237,0.08)}
+.status-icon{font-size:56px;margin:20px 0}
+.status-text{font-size:22px;font-weight:700;color:#b91c1c;margin:15px 0}
+.status-text.green{color:#10b981}
+.tips{color:#5b21b6;font-size:13px;line-height:1.7;background:#fff;padding:14px;border-radius:10px;border:1px solid #ddd6fe;margin:15px 0}
+.verify-code{font-size:28px;color:#7c3aed;font-weight:800;letter-spacing:4px;margin:20px 0;background:#f5f3ff;padding:18px;border-radius:14px;border:2px dashed #a78bfa}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9998;display:none;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;padding:20px;max-width:90%;max-height:85vh;overflow-y:auto;width:340px}
+.modal-title{font-size:18px;font-weight:700;color:#333;margin-bottom:15px;text-align:center}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:#fff;padding:15px 30px;border-radius:10px;z-index:10000;font-size:14px;opacity:0;transition:opacity 0.3s}
+.toast.show{opacity:1}
+.upload-area{border:2px dashed #ddd6fe;padding:30px;border-radius:12px;text-align:center;cursor:pointer;margin:10px 0}
+.upload-area:hover{border-color:#8b5cf6;background:#f5f3ff}
+.keyword-tag{display:inline-block;background:#8b5cf6;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;margin:2px}
+.keyword-tag.red{background:#dc3545}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="container" id="app"></div>
+
+<div class="modal-overlay" id="modal">
+<div class="modal">
+<div class="modal-title" id="modalTitle"></div>
+<div id="modalBody"></div>
+</div>
+</div>
+
+<script>
+var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
+var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
+var status="tasks",selectedFile=null,selectedTask=null;
+
+function loadCfg(){var c=localStorage.getItem("cfg");if(c)cfg=JSON.parse(c);var k=localStorage.getItem("aiKeywords");if(k)aiKeywords=JSON.parse(k);}
+loadCfg();
+
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
+function modal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").classList.add("show");}
+function closeModal(){document.getElementById("modal").classList.remove("show");selectedFile=null;}
+document.getElementById("modal").onclick=function(e){if(e.target===this)closeModal();};
+
+function getSubs(){var d=localStorage.getItem("subs");return d?JSON.parse(d):[];}
+function saveSub(sub){var s=getSubs();sub.id=Date.now();sub.time=new Date().toLocaleString();sub.status="pending";s.push(sub);localStorage.setItem("subs",JSON.stringify(s));}
+function getStats(){var s=getSubs();return{pending:s.filter(function(x){return x.status==="pending"}).length};}
+
+function render(){var el=document.getElementById("app");if(status==="submitted"){el.innerHTML=renderSubmitted();}else if(status==="passed"){el.innerHTML=renderPassed();}else{el.innerHTML=renderTasks();}}
+
+function renderTasks(){
+var img='<img src="'+cfg.taskImage+'" style="width:100%;border-radius:12px;margin:15px 0;display:none;">';
+return'<div class="header"><h1>'+cfg.title+'</h1><p>'+cfg.subTitle+'</p></div>'+
+'<div class="card"><div class="card-title">1️⃣ '+cfg.task1Title+'<span class="badge badge-ai">AI审核</span></div><div class="card-desc">'+cfg.task1Desc+'</div><button class="btn" onclick="startTask(1)">📤 上传任务截图</button></div>'+
+'<div class="card"><div class="card-title">2️⃣ '+cfg.task2Title+'<span class="badge badge-human">人工审核</span></div><div class="card-desc">'+cfg.task2Desc+'</div><button class="btn" onclick="startTask(2)">🖼️ 进入查看任务</button></div>'+
+'<div class="card"><div class="card-title">3️⃣ '+cfg.task3Title+'<span class="badge badge-human">人工审核</span></div><div class="card-desc">'+cfg.task3Desc+'</div><button class="btn" onclick="startTask(3)">📤 上传任务截图</button></div>';
+}
+
+function renderSubmitted(){
+var stats=getStats();
+return'<div class="header"><h1>'+cfg.title+'</h1></div>'+
+'<div class="status-box"><div class="status-icon">⏰</div><div class="status-text">已提交，等待审核</div>'+
+'<div class="tips">您的任务截图已提交，正在排队等待审核。<br>当前排队：'+stats.pending+'人</div>'+
+'<button class="btn btn-green" onclick="checkStatus()" style="margin-top:15px;">🔄 检查审核状态</button>'+
+'<button class="btn" onclick="status=\'tasks\';render();" style="margin-top:10px;">提交其他任务</button></div>';
+}
+
+function renderPassed(){
+var code="DEMO"+Math.random().toString(36).substr(2,6).toUpperCase();
+localStorage.setItem("verifyCode",code);
+return'<div class="header"><h1>'+cfg.title+'</h1></div>'+
+'<div class="status-box"><div class="status-icon">✅</div><div class="status-text green">审核通过</div>'+
+'<div class="tips" style="background:#d1fae5;border-color:#6ee7b7;">恭喜您完成任务！请复制下方验证码</div>'+
+'<div class="verify-code">'+code+'</div>'+
+'<button class="btn btn-green" onclick="copyCode()" style="height:50px;line-height:50px;font-size:18px;border-radius:25px;">📋 复制验证码</button></div>';
+}
+
+function startTask(type){
+selectedTask=type;
+var names={1:cfg.task1Title,2:cfg.task2Title,3:cfg.task3Title};
+var auditLabel=type===1?'<span class="badge badge-ai">AI审核</span>':'<span class="badge badge-human">人工审核</span>';
+var kwHtml='';
+if(type===1){
+kwHtml='<div style="background:#f8f9fa;padding:10px;border-radius:8px;margin:10px 0;font-size:12px;"><strong>必须包含：</strong>';
+for(var i=0;i<aiKeywords.required.length;i++){kwHtml+='<span class="keyword-tag">'+aiKeywords.required[i]+'</span>';}
+kwHtml+='<br><strong style="color:#dc3545;">敏感词：</strong>';
+for(var i=0;i<aiKeywords.ban.length;i++){kwHtml+='<span class="keyword-tag red">'+aiKeywords.ban[i]+'</span>';}
+kwHtml+='</div>';
+}
+var body='<p style="text-align:center;color:#666;margin-bottom:10px;">'+names[type]+' '+auditLabel+'</p>'+kwHtml+
+'<div class="upload-area" onclick="document.getElementById(\'fileInput\').click()"><div style="font-size:32px;">📷</div><div style="color:#666;margin-top:10px;">点击上传图片</div><div id="preview"></div></div>'+
+'<input type="file" id="fileInput" accept="image/*" style="display:none;" onchange="handleFile(this.files[0])">'+
+'<button class="btn" id="submitBtn" onclick="submitTask()" disabled>📤 提交审核</button>'+
+'<button class="btn" onclick="closeModal()" style="background:#6b7280;margin-top:10px;">取消</button>';
+modal('上传截图 - '+names[type],body);
+}
+
+function handleFile(file){
+if(!file)return;
+selectedFile=file;
+var reader=new FileReader();
+reader.onload=function(e){
+document.getElementById("preview").innerHTML='<img src="'+e.target.result+'" style="max-width:100%;border-radius:8px;margin-top:10px;">';
+document.getElementById("submitBtn").disabled=false;
+};
+reader.readAsDataURL(file);
+}
+
+function submitTask(){
+if(!selectedFile){toast("请先上传图片");return;}
+var reader=new FileReader();
+reader.onload=function(e){
+var sub={taskType:selectedTask,taskName:{1:cfg.task1Title,2:cfg.task2Title,3:cfg.task3Title}[selectedTask],image:e.target.result};
+closeModal();
+if(selectedTask===1){
+modal("AI审核中",'<div style="text-align:center;padding:40px;"><div style="font-size:48px;">🤖</div><div style="margin-top:20px;">正在分析图片...</div></div>');
+setTimeout(function(){
+var passed=Math.random()>0.3;
+closeModal();
+if(passed){
+status="passed";
+render();
+toast("审核通过！");
+}else{
+modal("AI审核结果",'<div style="text-align:center;"><div style="font-size:48px;margin:20px 0;">❌</div><div style="font-weight:700;margin-bottom:10px;">审核未通过</div><div class="tips">图片内容不符合要求，请检查是否包含必要信息后重新上传。</div><button class="btn" onclick="closeModal()" style="background:#6b7280;">关闭</button></div>');
+}
+},2000);
+}else{
+saveSub(sub);
+status="submitted";
+render();
+toast("提交成功，等待审核！");
+}
+};
+reader.readAsDataURL(selectedFile);
+}
+
+function checkStatus(){
+var subs=getSubs();
+var reviewed=subs.filter(function(s){return s.status!=="pending"});
+if(reviewed.length>0){
+var latest=reviewed[reviewed.length-1];
+if(latest.status==="passed"){
+status="passed";
+render();
+toast("审核通过！");
+}else{
+toast("审核未通过，请重新提交");
+}
+}else{
+toast("还在审核中，请耐心等待");
+}
+}
+
+function copyCode(){
+var code=localStorage.getItem("verifyCode")||"ERROR";
+navigator.clipboard.writeText(code);
+toast("验证码已复制！");
+}
+
+render();
+</script>
+</body>
+</html>
