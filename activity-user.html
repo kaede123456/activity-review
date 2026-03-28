@@ -85,15 +85,20 @@ return res.ok;
 
 async function checkMyStatus(){
 try{
-// 查询所有非pending状态的记录
-var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?status=neq.pending&order=created_at.desc&limit=10',{
+// 查询所有记录，然后在前端过滤
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc&limit=20',{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
 var subs=await res.json();
-console.log('检查到记录数:', subs.length);
-if(subs.length>0){
-var latest=subs[0];
+console.log('获取到记录:', subs.length);
+
+// 过滤出非pending状态的
+var reviewed=subs.filter(function(s){return s.status&&s.status!=='pending'});
+console.log('已审核记录:', reviewed.length);
+
+if(reviewed.length>0){
+var latest=reviewed[0];
 console.log('最新状态:', latest.status);
 if(latest.status==='passed'){
 status="passed";
@@ -119,7 +124,8 @@ toast("已开启自动检查...");
 checkInterval=setInterval(async function(){
 console.log('检查中...');
 var found=await checkMyStatus();
-},3000);
+if(found)stopAutoCheck();
+},5000);
 }
 
 function stopAutoCheck(){
