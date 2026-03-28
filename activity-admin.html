@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .btn:hover{transform:translateY(-1px)}
 .btn-green{background:linear-gradient(135deg,#28a745,#1e7e34)}
 .btn-red{background:linear-gradient(135deg,#dc3545,#c82333)}
+.btn-purple{background:linear-gradient(135deg,#8b5cf6,#6d28d9)}
 .btn-gray{background:#6b7280}
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px}
 .stat-card{background:#fff;border-radius:12px;padding:15px;text-align:center;border:1px solid #e5e7eb}
@@ -29,6 +30,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .review-header{display:flex;justify-content:space-between;margin-bottom:10px}
 .review-image{max-width:100%;border-radius:8px;margin:10px 0;cursor:pointer}
 .review-actions{display:flex;gap:10px;margin-top:10px}
+.editor-section{background:#fff;border-radius:18px;padding:20px;margin-bottom:20px;border:2px dashed #8b5cf6}
+.editor-title{font-size:16px;font-weight:700;color:#4c1d95;margin-bottom:15px}
+.editor-group{margin-bottom:15px}
+.editor-label{display:block;font-size:13px;color:#666;margin-bottom:5px;font-weight:600}
+.editor-input{width:100%;padding:10px;border:1px solid #ddd6fe;border-radius:8px;font-size:14px}
+.editor-textarea{width:100%;min-height:80px;padding:10px;border:1px solid #ddd6fe;border-radius:8px;font-size:14px;resize:vertical}
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9998;display:none;align-items:center;justify-content:center}
 .modal-overlay.show{display:flex}
 .modal{background:#fff;border-radius:16px;padding:20px;max-width:90%;max-height:85vh;overflow-y:auto;width:340px}
@@ -40,6 +47,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .login-input{width:100%;padding:12px 15px;border:2px solid #ddd6fe;border-radius:10px;font-size:16px;margin-bottom:15px;box-sizing:border-box}
 .login-btn{width:100%;padding:12px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}
 .login-error{color:#dc3545;font-size:14px;margin-top:10px;display:none}
+.nav{display:flex;gap:10px;margin-bottom:15px}
+.nav-btn{flex:1;padding:10px;background:#f3f4f6;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
+.nav-btn.active{background:#8b5cf6;color:#fff}
 .hidden{display:none}
 </style>
 </head>
@@ -61,6 +71,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <p id="syncStatus">📡 正在连接云端...</p>
 </div>
 
+<div class="nav">
+<button class="nav-btn active" onclick="switchView('review')" id="navReview">📋 审核管理</button>
+<button class="nav-btn" onclick="switchView('config')" id="navConfig">⚙️ 配置管理</button>
+</div>
+
+<!-- 审核管理 -->
+<div id="reviewView">
 <div class="card">
 <div class="card-title">📈 审核统计</div>
 <div class="stat-grid">
@@ -75,6 +92,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 </div>
 <div id="reviewList"></div>
 </div>
+</div>
+
+<!-- 配置管理 -->
+<div id="configView" class="hidden">
+<div class="editor-section">
+<div class="editor-title">🎨 活动配置</div>
+<div class="editor-group"><label class="editor-label">活动标题</label><input type="text" class="editor-input" id="cfg_title"></div>
+<div class="editor-group"><label class="editor-label">副标题</label><input type="text" class="editor-input" id="cfg_subtitle"></div>
+<div class="editor-group"><label class="editor-label">任务一标题</label><input type="text" class="editor-input" id="cfg_t1_title"></div>
+<div class="editor-group"><label class="editor-label">任务一描述</label><textarea class="editor-textarea" id="cfg_t1_desc"></textarea></div>
+<div class="editor-group"><label class="editor-label">任务二标题</label><input type="text" class="editor-input" id="cfg_t2_title"></div>
+<div class="editor-group"><label class="editor-label">任务二描述</label><textarea class="editor-textarea" id="cfg_t2_desc"></textarea></div>
+<div class="editor-group"><label class="editor-label">任务三标题</label><input type="text" class="editor-input" id="cfg_t3_title"></div>
+<div class="editor-group"><label class="editor-label">任务三描述</label><textarea class="editor-textarea" id="cfg_t3_desc"></textarea></div>
+<button class="btn btn-green" onclick="saveConfig()">保存配置</button>
+</div>
+
+<div class="editor-section">
+<div class="editor-title">🔑 AI审核关键词配置</div>
+<div class="editor-group"><label class="editor-label">必须包含关键词（每行一个）</label><textarea class="editor-textarea" id="kw_required" style="min-height:80px;"></textarea></div>
+<div class="editor-group"><label class="editor-label">敏感词（检测到直接拒绝）</label><textarea class="editor-textarea" id="kw_ban" style="min-height:80px;"></textarea></div>
+<button class="btn btn-green" onclick="saveKeywords()">保存关键词</button>
+</div>
+</div>
 
 <button class="btn btn-gray" onclick="logout()" style="margin-top:20px;">退出登录</button>
 </div>
@@ -87,18 +128,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 </div>
 
 <script>
-// Supabase 配置
 const SUPABASE_URL = 'https://duxryudlekdvmktreqfe.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
 
 var DEFAULT_PASSWORD = "admin123";
 var currentTab="pending";
+var currentView="review";
+var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
+var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 
 function init(){
 var p=localStorage.getItem("adminPassword");
 if(!p)localStorage.setItem("adminPassword",DEFAULT_PASSWORD);
+loadCfg();
 }
 init();
+
+function loadCfg(){
+var c=localStorage.getItem("cfg");
+if(c)cfg=JSON.parse(c);
+var k=localStorage.getItem("aiKeywords");
+if(k)aiKeywords=JSON.parse(k);
+}
 
 function toast(msg){
 var t=document.getElementById("toast");
@@ -133,13 +184,55 @@ document.getElementById("adminPage").classList.add("hidden");
 document.getElementById("passwordInput").value="";
 }
 
+function switchView(view){
+currentView=view;
+document.getElementById("reviewView").classList.toggle("hidden",view!=="review");
+document.getElementById("configView").classList.toggle("hidden",view!=="config");
+document.getElementById("navReview").classList.toggle("active",view==="review");
+document.getElementById("navConfig").classList.toggle("active",view==="config");
+if(view==="config")loadEditor();
+if(view==="review")loadData();
+}
+
+function loadEditor(){
+document.getElementById("cfg_title").value=cfg.title;
+document.getElementById("cfg_subtitle").value=cfg.subTitle;
+document.getElementById("cfg_t1_title").value=cfg.task1Title;
+document.getElementById("cfg_t1_desc").value=cfg.task1Desc;
+document.getElementById("cfg_t2_title").value=cfg.task2Title;
+document.getElementById("cfg_t2_desc").value=cfg.task2Desc;
+document.getElementById("cfg_t3_title").value=cfg.task3Title;
+document.getElementById("cfg_t3_desc").value=cfg.task3Desc;
+document.getElementById("kw_required").value=aiKeywords.required.join("\n");
+document.getElementById("kw_ban").value=aiKeywords.ban.join("\n");
+}
+
+function saveConfig(){
+cfg.title=document.getElementById("cfg_title").value;
+cfg.subTitle=document.getElementById("cfg_subtitle").value;
+cfg.task1Title=document.getElementById("cfg_t1_title").value;
+cfg.task1Desc=document.getElementById("cfg_t1_desc").value;
+cfg.task2Title=document.getElementById("cfg_t2_title").value;
+cfg.task2Desc=document.getElementById("cfg_t2_desc").value;
+cfg.task3Title=document.getElementById("cfg_t3_title").value;
+cfg.task3Desc=document.getElementById("cfg_t3_desc").value;
+localStorage.setItem("cfg",JSON.stringify(cfg));
+toast("配置已保存");
+}
+
+function saveKeywords(){
+var req=document.getElementById("kw_required").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
+var ban=document.getElementById("kw_ban").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
+aiKeywords.required=req;
+aiKeywords.ban=ban;
+localStorage.setItem("aiKeywords",JSON.stringify(aiKeywords));
+toast("关键词已保存");
+}
+
 async function getSubmissions(){
 try{
 const res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc',{
-headers:{
-'apikey':SUPABASE_KEY,
-'Authorization':'Bearer '+SUPABASE_KEY
-}
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
 document.getElementById("syncStatus").textContent="☁️ 已连接云端";
@@ -157,12 +250,7 @@ async function updateStatus(id,status){
 try{
 const res=await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+id,{
 method:'PATCH',
-headers:{
-'Content-Type':'application/json',
-'apikey':SUPABASE_KEY,
-'Authorization':'Bearer '+SUPABASE_KEY,
-'Prefer':'return=representation'
-},
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=representation'},
 body:JSON.stringify({status:status})
 });
 return res.ok;
@@ -175,11 +263,7 @@ await renderAdmin();
 
 async function renderAdmin(){
 var subs=await getSubmissions();
-var stats={
-pending:subs.filter(function(x){return x.status==='pending'}).length,
-passed:subs.filter(function(x){return x.status==='passed'}).length,
-rejected:subs.filter(function(x){return x.status==='rejected'}).length
-};
+var stats={pending:subs.filter(function(x){return x.status==='pending'}).length,passed:subs.filter(function(x){return x.status==='passed'}).length,rejected:subs.filter(function(x){return x.status==='rejected'}).length};
 document.getElementById("statPending").textContent=stats.pending;
 document.getElementById("statPassed").textContent=stats.passed;
 document.getElementById("statRejected").textContent=stats.rejected;
@@ -187,12 +271,11 @@ document.getElementById("tabPending").textContent="待审核 ("+stats.pending+")
 renderList(subs);
 }
 
-async function switchTab(tab){
+function switchTab(tab){
 currentTab=tab;
 document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
 event.target.classList.add("active");
-var subs=await getSubmissions();
-renderList(subs);
+getSubmissions().then(renderList);
 }
 
 function renderList(subs){
@@ -226,12 +309,7 @@ list.innerHTML=html;
 async function review(id,st){
 if(!confirm((st==='passed'?"通过":"拒绝")+"吗？"))return;
 var ok=await updateStatus(id,st);
-if(ok){
-toast("已处理");
-loadData();
-}else{
-toast("保存失败");
-}
+if(ok){toast("已处理");loadData();}else{toast("保存失败");}
 }
 
 function showImg(src){
