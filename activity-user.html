@@ -62,7 +62,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
 var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 var status="tasks",selectedFile=null,selectedTask=null;
-var checkInterval=null,lastCheckTime=0;
+var checkInterval=null;
 
 function loadCfg(){var c=localStorage.getItem("cfg");if(c)cfg=JSON.parse(c);var k=localStorage.getItem("aiKeywords");if(k)aiKeywords=JSON.parse(k);}
 loadCfg();
@@ -85,21 +85,31 @@ return res.ok;
 
 async function checkMyStatus(){
 try{
-var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?status=eq.passed&order=created_at.desc&limit=5',{
+// 查询所有非pending状态的记录
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?status=neq.pending&order=created_at.desc&limit=10',{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
 var subs=await res.json();
+console.log('检查到记录数:', subs.length);
 if(subs.length>0){
+var latest=subs[0];
+console.log('最新状态:', latest.status);
+if(latest.status==='passed'){
 status="passed";
 localStorage.setItem("verifyCode",generateCode());
 stopAutoCheck();
 render();
 modal("🎉 审核通过！","<div style='text-align:center;'><div style='font-size:64px;'>🎉</div><div style='font-size:18px;font-weight:700;color:#28a745;margin:15px 0;'>恭喜您，审核已通过！</div><button class='btn btn-green' onclick='closeModal()' style='margin-top:15px;'>查看结果</button></div>");
 return true;
+}else if(latest.status==='rejected'){
+stopAutoCheck();
+modal("❌ 审核未通过","<div style='text-align:center;'><div style='font-size:48px;'>😢</div><div style='margin:15px 0;'>很遗憾，您的审核未通过<br>可以返回重新提交</div><button class='btn btn-gray' onclick='closeModal();status=\"tasks\";render();' style='margin-top:10px;'>返回首页</button></div>");
+return true;
 }
 }
-}catch(e){console.error(e);}
+}
+}catch(e){console.error('检查错误:',e);}
 return false;
 }
 
@@ -107,8 +117,8 @@ function startAutoCheck(){
 stopAutoCheck();
 toast("已开启自动检查...");
 checkInterval=setInterval(async function(){
+console.log('检查中...');
 var found=await checkMyStatus();
-if(found)stopAutoCheck();
 },3000);
 }
 
