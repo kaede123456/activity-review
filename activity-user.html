@@ -43,7 +43,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .auto-check{background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:15px;border-radius:10px;font-size:14px;margin:10px 0;}
 .dot{animation:blink 1s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-.verify-input{width:100%;padding:15px;border:2px solid #8b5cf6;border-radius:12px;font-size:18px;text-align:center;letter-spacing:3px;margin:15px 0;box-sizing:border-box}
 </style>
 </head>
 <body>
@@ -96,11 +95,10 @@ var reviewed=subs.filter(function(s){return s.status&&s.status!=='pending'});
 if(reviewed.length>0){
 var latest=reviewed[0];
 if(latest.status==='passed'){
-status="passed";
+status="success";
 localStorage.setItem("verifyCode",generateCode());
 stopAutoCheck();
 render();
-modal("🎉 审核通过！","<div style='text-align:center;'><div style='font-size:64px;'>🎉</div><div style='font-size:18px;font-weight:700;color:#28a745;margin:15px 0;'>恭喜您，审核已通过！</div><button class='btn btn-green' onclick='goToSuccessPage()' style='margin-top:10px;'>🎁 查看成功页面</button><button class='btn btn-gray' onclick='closeModal()' style='margin-top:10px;'>稍后查看</button></div>");
 return true;
 }else if(latest.status==='rejected'){
 stopAutoCheck();
@@ -113,17 +111,10 @@ return true;
 return false;
 }
 
-function goToSuccessPage(){
-closeModal();
-status="verifyCode";
-render();
-}
-
 function startAutoCheck(){
 stopAutoCheck();
 toast("已开启自动检查...");
 checkInterval=setInterval(async function(){
-console.log('检查中...');
 var found=await checkMyStatus();
 if(found)stopAutoCheck();
 },5000);
@@ -135,9 +126,8 @@ if(checkInterval){clearInterval(checkInterval);checkInterval=null;}
 
 function render(){
 var el=document.getElementById("app");
-if(status==="submitted"){el.innerHTML=renderSubmitted();}
-else if(status==="passed"){el.innerHTML=renderPassed();}
-else if(status==="verifyCode"){el.innerHTML=renderVerifyCode();}
+if(status==="success"){el.innerHTML=renderSuccessPage();}
+else if(status==="submitted"){el.innerHTML=renderSubmitted();}
 else{el.innerHTML=renderTasks();stopAutoCheck();}
 }
 
@@ -153,73 +143,32 @@ var html='<div class="header"><h1>'+cfg.title+'</h1></div>';
 html+='<div class="status-box">';
 html+='<div class="status-icon"><span class="dot">⏰</span></div>';
 html+='<div class="status-text">已提交，等待审核</div>';
-html+='<div class="auto-check">🔔 请保持此页面开启<br>审核通过后会<span style="color:#dc3545;font-weight:700;">自动弹窗提醒</span></div>';
-html+='<div class="tips">您的任务截图已提交，正在排队等待管理员审核。<br>审核结果会第一时间通知您。</div>';
+html+='<div class="auto-check">🔔 请保持此页面开启<br>审核通过后会<span style="color:#dc3545;font-weight:700;">自动跳转到成功页面</span></div>';
+html+='<div class="tips">您的任务截图已提交，正在排队等待管理员审核。</div>';
 html+='<button class="btn btn-green" onclick="manualCheck()" style="margin-top:10px;">🔄 立即检查</button>';
 html+='<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:10px;">返回首页</button>';
 html+='</div>';
 return html;
 }
 
-function renderPassed(){
+function renderSuccessPage(){
+var successImg=localStorage.getItem("successPageImg")||"";
 var verifyCode=localStorage.getItem("verifyCode")||generateCode();
 if(!localStorage.getItem("verifyCode")){localStorage.setItem("verifyCode",verifyCode);}
-var html='<div class="header"><h1>'+cfg.title+'</h1></div>';
-html+='<div class="status-box">';
-html+='<div class="status-icon">✅</div>';
+var html='<div class="header"><h1>🎉 恭喜您！</h1></div>';
+html+='<div class="success-page">';
+html+='<div class="status-icon">🎊</div>';
 html+='<div class="status-text green">审核通过</div>';
-html+='<div class="tips" style="background:#d1fae5;border-color:#6ee7b7;">恭喜您完成任务！请截图或复制下方验证码</div>';
-html+='<div class="verify-code">'+verifyCode+'</div>';
-html+='<button class="btn btn-purple" onclick="goToSuccessPage()" style="margin-top:10px;">🎁 前往成功页面</button>';
+if(successImg){
+html+='<img src="'+successImg+'" class="success-image" alt="成功图片">';
+}else{
+html+='<div style="padding:30px;color:#999;font-size:14px;">管理员暂未设置展示图片</div>';
+}
+html+='<div class="tips" style="background:#d1fae5;border-color:#6ee7b7;">您的验证码：<strong>'+verifyCode+'</strong><br>请截图保存此页面作为凭证</div>';
 html+='<button class="btn btn-green" onclick="copyCode()" style="margin-top:10px;">📋 复制验证码</button>';
 html+='<button class="btn btn-gray" onclick="status=\'tasks\';render();" style="margin-top:10px;">返回首页</button>';
 html+='</div>';
 return html;
-}
-
-function renderVerifyCode(){
-var html='<div class="header"><h1>🎁 成功页面</h1></div>';
-html+='<div class="card">';
-html+='<div class="card-title" style="text-align:center;">输入验证码查看图片</div>';
-html+='<input type="text" id="inputVerifyCode" class="verify-input" placeholder="请输入验证码" maxlength="10">';
-html+='<button class="btn btn-purple" onclick="checkVerifyCode()">🔓 验证并查看图片</button>';
-html+='<button class="btn btn-gray" onclick="status=\'passed\';render();" style="margin-top:10px;">返回</button>';
-html+='</div>';
-html+='<div id="verifyError" style="color:#dc3545;text-align:center;margin-top:10px;display:none;">验证码错误，请重试</div>';
-return html;
-}
-
-function checkVerifyCode(){
-var inputCode=document.getElementById("inputVerifyCode").value.trim().toUpperCase();
-var savedCode=localStorage.getItem("verifyCode")||"";
-if(inputCode===savedCode){
-showSuccessImage();
-}else{
-document.getElementById("verifyError").style.display="block";
-document.getElementById("inputVerifyCode").style.borderColor="#dc3545";
-setTimeout(function(){
-document.getElementById("inputVerifyCode").style.borderColor="#8b5cf6";
-document.getElementById("verifyError").style.display="none";
-},2000);
-}
-}
-
-function showSuccessImage(){
-var successImg=localStorage.getItem("successPageImg")||"";
-var verifyCode=localStorage.getItem("verifyCode")||"ERROR";
-var html='<div class="header"><h1>🎉 恭喜获得奖励</h1></div>';
-html+='<div class="success-page">';
-if(successImg){
-html+='<img src="'+successImg+'" class="success-image" alt="成功图片">';
-}else{
-html+='<div style="padding:40px;color:#999;">暂无图片</div>';
-}
-html+='<div class="tips" style="background:#d1fae5;border-color:#6ee7b7;">您的验证码：<strong>'+verifyCode+'</strong></div>';
-html+='<button class="btn btn-green" onclick="copyCode()" style="margin-top:15px;">📋 复制验证码</button>';
-html+='<button class="btn btn-gray" onclick="status=\'passed\';render();" style="margin-top:10px;">返回</button>';
-html+='</div>';
-var el=document.getElementById("app");
-el.innerHTML=html;
 }
 
 function generateCode(){return"DEMO"+Math.random().toString(36).substr(2,6).toUpperCase();}
@@ -275,12 +224,22 @@ modal("AI审核中","<div style='text-align:center;padding:40px;'><div style='fo
 var result=await doAIReview(imageData);
 closeModal();
 if(result.error){modal("审核错误","<div style='text-align:center;'><div style='font-size:48px;'>⚠️</div><div>"+result.error+"</div><button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>");}
-else if(result.pass){status="passed";localStorage.setItem("verifyCode",generateCode());render();modal("🎉 审核通过！","<div style='text-align:center;'><div style='font-size:64px;'>🎉</div><div style='font-size:18px;font-weight:700;color:#28a745;margin:15px 0;'>恭喜您，审核已通过！</div><button class='btn btn-green' onclick='goToSuccessPage()' style='margin-top:10px;'>🎁 查看成功页面</button><button class='btn btn-gray' onclick='closeModal()' style='margin-top:10px;'>稍后查看</button></div>");}
-else{var html="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;'>审核未通过</div>";if(result.missing.length>0)html+="<div style='color:#dc3545;'>缺少:"+result.missing.join(", ")+"</div>";if(result.banned.length>0)html+="<div style='color:#dc3545;'>敏感词:"+result.banned.join(", ")+"</div>";html+="<button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>";modal("AI审核结果",html);}
+else if(result.pass){
+status="success";
+localStorage.setItem("verifyCode",generateCode());
+render();
+modal("🎉 审核通过！","<div style='text-align:center;'><div style='font-size:64px;'>🎉</div><div style='font-size:18px;font-weight:700;color:#28a745;margin:15px 0;'>恭喜您，审核已通过！</div><button class='btn btn-green' onclick='closeModal()' style='margin-top:10px;'>查看成功页面</button></div>");
+}else{
+var html="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;'>审核未通过</div>";
+if(result.missing.length>0)html+="<div style='color:#dc3545;'>缺少:"+result.missing.join(", ")+"</div>";
+if(result.banned.length>0)html+="<div style='color:#dc3545;'>敏感词:"+result.banned.join(", ")+"</div>";
+html+="<button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>";
+modal("AI审核结果",html);
+}
 }else{
 var sub={taskType:selectedTask,taskName:{1:cfg.task1Title,2:cfg.task2Title,3:cfg.task3Title}[selectedTask],image:imageData};
 var ok=await saveToCloud(sub);
-if(ok){status="submitted";render();startAutoCheck();toast("提交成功，已开启自动检查！");}else{toast("提交失败，请重试");}
+if(ok){status="submitted";render();startAutoCheck();toast("提交成功！审核通过后自动跳转！");}else{toast("提交失败，请重试");}
 }
 }
 
