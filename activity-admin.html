@@ -133,6 +133,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <button class="btn btn-green" onclick="saveImg()">💾 保存到云端</button>
 <button class="btn btn-gray" onclick="clearImg()" style="margin-top:10px;">清除图片</button>
 </div>
+
+<div class="editor-section">
+<div class="editor-title">📋 任务二参考图片</div>
+<div class="editor-group">
+<label class="editor-label">上传任务二的海报/参考图（用户可在任务中查看）</label>
+<div id="currentTask2Img" class="upload-preview" style="display:none;"></div>
+<div style="border:2px dashed #ddd6fe;padding:20px;border-radius:8px;text-align:center;margin:10px 0;">
+<div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+<input type="file" id="task2ImgInput" accept="image/*" onchange="handleTask2Img(this.files[0])" style="display:none;">
+<button class="btn btn-purple" onclick="document.getElementById('task2ImgInput').click()" style="margin:0;">上传任务二图片</button>
+</div>
+<div id="task2ImgPreview" class="upload-preview" style="display:none;"></div>
+</div>
+<div class="editor-group"><label class="editor-label">或输入图片URL</label><input type="text" class="editor-input" id="task2ImgUrl" placeholder="图片链接"></div>
+<button class="btn btn-green" onclick="saveTask2Img()">💾 保存到云端</button>
+<button class="btn btn-gray" onclick="clearTask2Img()" style="margin-top:10px;">清除图片</button>
+</div>
 </div>
 
 <button class="btn btn-gray" onclick="logout()" style="margin-top:20px;">退出登录</button>
@@ -151,6 +168,7 @@ const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 const SUCCESS_IMG_KEY='__success_page_image__';
 const CONFIG_KEY='__activity_config__';
 const KEYWORDS_KEY='__ai_keywords__';
+const TASK2_IMG_KEY='__task2_image__';
 
 var DEFAULT_PASSWORD="admin123";
 var currentTab="pending";
@@ -250,6 +268,11 @@ if(imgRec&&imgRec.image){
 document.getElementById("currentImg").innerHTML='<div style="color:#666;margin-bottom:5px;">当前审核通过页面图片：</div><img src="'+imgRec.image+'" alt="当前">';
 document.getElementById("currentImg").style.display="block";
 }
+var task2Rec=cachedAll.filter(function(s){return s.task_name===TASK2_IMG_KEY})[0];
+if(task2Rec&&task2Rec.image){
+document.getElementById("currentTask2Img").innerHTML='<div style="color:#666;margin-bottom:5px;">当前任务二参考图：</div><img src="'+task2Rec.image+'" alt="当前">';
+document.getElementById("currentTask2Img").style.display="block";
+}
 }
 }
 
@@ -283,6 +306,19 @@ imgData=e.target.result;
 document.getElementById("imgUrl").value="";
 document.getElementById("imgPreview").innerHTML='<img src="'+imgData+'" alt="预览">';
 document.getElementById("imgPreview").style.display="block";
+};
+reader.readAsDataURL(file);
+}
+
+var task2ImgData=null;
+function handleTask2Img(file){
+if(!file)return;
+var reader=new FileReader();
+reader.onload=function(e){
+task2ImgData=e.target.result;
+document.getElementById("task2ImgUrl").value="";
+document.getElementById("task2ImgPreview").innerHTML='<img src="'+task2ImgData+'" alt="预览">';
+document.getElementById("task2ImgPreview").style.display="block";
 };
 reader.readAsDataURL(file);
 }
@@ -349,6 +385,37 @@ document.getElementById("currentImg").style.display="none";
 imgData=null;
 toast("已清除");
 }catch(e){toast("错误："+e.message);}
+}
+async function saveTask2Img(){
+var url=document.getElementById('task2ImgUrl').value.trim();
+var toSave=task2ImgData||url;
+if(!toSave){toast("请上传图片或输入URL");return;}
+var ok=await saveRecord(TASK2_IMG_KEY, toSave);
+if(ok){
+toast("任务二图片已保存！");
+document.getElementById('currentTask2Img').innerHTML='<div style="color:#666;margin-bottom:5px;">当前任务二参考图：</div><img src="'+toSave+'" alt="当前">';
+document.getElementById('currentTask2Img').style.display='block';
+document.getElementById('task2ImgPreview').style.display='none';
+task2ImgData=null;
+}else{toast("保存失败");}
+}
+
+async function clearTask2Img(){
+if(!confirm("确定清除吗？"))return;
+try{
+var existing=cachedAll?cachedAll.filter(function(s){return s.task_name===TASK2_IMG_KEY})[0]:null;
+if(existing&&existing.id){
+await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing.id,{
+method:'DELETE',
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+}
+document.getElementById('task2ImgUrl').value='';
+document.getElementById('task2ImgPreview').style.display='none';
+document.getElementById('currentTask2Img').style.display='none';
+task2ImgData=null;
+toast("已清除");
+}catch(e){toast("错误:"+e.message);}
 }
 
 function renderAdmin(all){
