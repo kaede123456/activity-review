@@ -63,8 +63,8 @@ const SUCCESS_IMG_KEY='__success_page_image__';
 const CONFIG_KEY='__activity_config__';
 const KEYWORDS_KEY='__ai_keywords__';
 
-var cfg={title:"27妍稀裤网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐妍稀裤，浏览量达到50后截图一张"};
-var aiKeywords={required:["妍稀裤","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
+var cfg={title:"27海研赴岸网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐海研赴岸，浏览量达到50后截图一张"};
+var aiKeywords={required:["海研赴岸","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 var status="tasks",selectedFile=null,selectedTask=null;
 var checkInterval=null;
 // 预加载 OCR worker
@@ -322,11 +322,15 @@ status="success";
 await render();
 }
 else{
-var html="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;margin:10px 0;'>审核未通过</div>";
-if(result.missing.length>0)html+="<div style='color:#dc3545;margin:5px 0;'>❌ 缺少关键词: "+result.missing.join(", ")+"</div>";
-if(result.banned.length>0)html+="<div style='color:#dc3545;margin:5px 0;'>⚠️ 敏感词: "+result.banned.join(", ")+"</div>";
-html+="<button class='btn btn-gray' onclick='closeModal()' style='margin-top:15px;'>关闭</button></div>";
-modal("AI审核结果",html);
+// 显示识别结果调试信息
+var debugHtml="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;margin:10px 0;'>审核未通过</div>";
+debugHtml+="<div style='background:#f5f5f5;padding:10px;border-radius:8px;margin:10px 0;text-align:left;font-size:11px;word-break:break-all;'><strong>识别出的文字：</strong><br>"+(result.text||'未识别到文字').substring(0,200)+"</div>";
+debugHtml+="<div style='text-align:left;font-size:12px;margin:10px 0;'><strong>当前关键词：</strong>"+aiKeywords.required.join(', ')+"</div>";
+if(result.matched.length>0)debugHtml+="<div style='color:#28a745;margin:5px 0;'>✅ 匹配: "+result.matched.join(", ")+"</div>";
+if(result.missing.length>0)debugHtml+="<div style='color:#dc3545;margin:5px 0;'>❌ 缺少: "+result.missing.join(", ")+"</div>";
+if(result.banned.length>0)debugHtml+="<div style='color:#dc3545;margin:5px 0;'>⚠️ 敏感词: "+result.banned.join(", ")+"</div>";
+debugHtml+="<button class='btn btn-gray' onclick='closeModal()' style='margin-top:15px;'>关闭</button></div>";
+modal("AI审核结果",debugHtml);
 }
 }else{
 // 人工审核
