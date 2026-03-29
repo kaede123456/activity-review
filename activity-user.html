@@ -260,6 +260,10 @@ document.getElementById("submitBtn").disabled=false;
 reader.readAsDataURL(file);
 }
 
+function escapeHtml(str){
+return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+}
+
 async function doAIReview(imageData){
 try{
 // 使用预加载的 worker 或快速创建新的
@@ -267,7 +271,6 @@ var worker=ocrWorker;
 if(!worker){
 worker=await Tesseract.createWorker('chi_sim',1,{
 logger:function(m){
-// 实时更新进度
 if(m.status==='recognizing text'){
 var progressEl=document.getElementById('ocrProgress');
 if(progressEl){
@@ -286,14 +289,28 @@ result=await worker.recognize(imageData);
 worker.terminate();
 }
 var text=result.data.text;
+// 标准化文字（移除空格和特殊字符）
+var normalizedText=text.replace(/\s+/g,'');
 // 分析
 var matched=[],missing=[],banned=[];
 for(var i=0;i<aiKeywords.required.length;i++){
-if(text.indexOf(aiKeywords.required[i])>=0){matched.push(aiKeywords.required[i]);}
-else{missing.push(aiKeywords.required[i]);}
+var keyword=aiKeywords.required[i];
+// 精确匹配
+if(normalizedText.indexOf(keyword)>=0){
+matched.push(keyword);
+}else{
+// 检查相似字符（调试用）
+var similar=[];
+for(var j=0;j<normalizedText.length;j++){
+if(normalizedText.substring(j,j+1)===keyword.substring(0,1)){
+similar.push(normalizedText.substring(j,j+keyword.length));
+}
+}
+missing.push(keyword+' (识别结果中可能有相似字符)');
+}
 }
 for(var i=0;i<aiKeywords.ban.length;i++){
-if(text.indexOf(aiKeywords.ban[i])>=0){banned.push(aiKeywords.ban[i]);}
+if(normalizedText.indexOf(aiKeywords.ban[i])>=0){banned.push(aiKeywords.ban[i]);}
 }
 return{text:text,matched:matched,missing:missing,banned:banned,pass:banned.length===0&&missing.length===0};
 }catch(e){
@@ -324,10 +341,11 @@ await render();
 else{
 // 显示识别结果调试信息
 var debugHtml="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;margin:10px 0;'>审核未通过</div>";
-debugHtml+="<div style='background:#f5f5f5;padding:10px;border-radius:8px;margin:10px 0;text-align:left;font-size:11px;word-break:break-all;'><strong>识别出的文字：</strong><br>"+(result.text||'未识别到文字').substring(0,200)+"</div>";
-debugHtml+="<div style='text-align:left;font-size:12px;margin:10px 0;'><strong>当前关键词：</strong>"+aiKeywords.required.join(', ')+"</div>";
-if(result.matched.length>0)debugHtml+="<div style='color:#28a745;margin:5px 0;'>✅ 匹配: "+result.matched.join(", ")+"</div>";
-if(result.missing.length>0)debugHtml+="<div style='color:#dc3545;margin:5px 0;'>❌ 缺少: "+result.missing.join(", ")+"</div>";
+debugHtml+="<div style='background:#f5f5f5;padding:10px;border-radius:8px;margin:10px 0;text-align:left;font-size:11px;word-break:break-all;'><strong>识别出的文字（原始）：</strong><br>"+escapeHtml((result.text||'').substring(0,300))+"</div>";
+debugHtml+="<div style='background:#e8f5e9;padding:10px;border-radius:8px;margin:10px 0;text-align:left;font-size:11px;word-break:break-all;'><strong>标准化后：</strong><br>"+escapeHtml(result.text.replace(/\s+/g,'').substring(0,300))+"</div>";
+debugHtml+="<div style='text-align:left;font-size:12px;margin:10px 0;'><strong>需要匹配：</strong>"+aiKeywords.required.join(', ')+"</div>";
+if(result.matched.length>0)debugHtml+="<div style='color:#28a745;margin:5px 0;'>✅ 已匹配: "+result.matched.join(", ")+"</div>";
+if(result.missing.length>0)debugHtml+="<div style='color:#dc3545;margin:5px 0;'>❌ 未匹配: "+result.missing.join(", ")+"</div>";
 if(result.banned.length>0)debugHtml+="<div style='color:#dc3545;margin:5px 0;'>⚠️ 敏感词: "+result.banned.join(", ")+"</div>";
 debugHtml+="<button class='btn btn-gray' onclick='closeModal()' style='margin-top:15px;'>关闭</button></div>";
 modal("AI审核结果",debugHtml);
