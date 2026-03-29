@@ -266,6 +266,31 @@ return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').repla
 
 async function doAIReview(imageData){
 try{
+// 图像预处理（提高清晰度）
+var canvas=document.createElement('canvas');
+var ctx=canvas.getContext('2d');
+var img=new Image();
+await new Promise(function(resolve,reject){
+img.onload=resolve;
+img.onerror=reject;
+img.src=imageData;
+});
+canvas.width=img.width*2;
+canvas.height=img.height*2;
+ctx.imageSmoothingEnabled=true;
+ctx.drawImage(img,0,0,canvas.width,canvas.height);
+// 增强对比度
+var imageData2=ctx.getImageData(0,0,canvas.width,canvas.height);
+var data=imageData2.data;
+for(var i=0;i<data.length;i+=4){
+var avg=(data[i]+data[i+1]+data[i+2])/3;
+var contrast=1.5;
+var newVal=((avg-128)*contrast)+128;
+newVal=Math.max(0,Math.min(255,newVal));
+data[i]=data[i+1]=data[i+2]=newVal;
+}
+ctx.putImageData(imageData2,0,0);
+var processedImage=canvas.toDataURL();
 // 使用预加载的 worker 或快速创建新的
 var worker=ocrWorker;
 if(!worker){
@@ -280,39 +305,40 @@ progressEl.style.width=(m.progress*100)+'%';
 }
 });
 }
-// 识别
+// 识别处理后的图片
 var result;
 if(ocrWorker&&worker===ocrWorker){
-result=await worker.recognize(imageData);
+result=await worker.recognize(processedImage);
 }else{
-result=await worker.recognize(imageData);
+result=await worker.recognize(processedImage);
 worker.terminate();
 }
 var text=result.data.text;
 // 标准化文字（移除空格和特殊字符）
 var normalizedText=text.replace(/\s+/g,'');
-// 分析
+// 分析 - 使用宽松匹配
 var matched=[],missing=[],banned=[];
 for(var i=0;i<aiKeywords.required.length;i++){
 var keyword=aiKeywords.required[i];
-// 精确匹配
-if(normalizedText.indexOf(keyword)>=0){
-matched.push(keyword);
+// 检查关键词中的每个字是否都存在（宽松匹配）
+var allCharsFound=true;
+for(var j=0;j<keyword.length;j++){
+if(normalizedText.indexOf(keyword.charAt(j))<0){
+allCharsFound=false;
+break;
+}
+}
+if(allCharsFound||normalizedText.indexOf(keyword)>=0){
+matched.push(keyword+' ✓');
 }else{
-// 检查相似字符（调试用）
-var similar=[];
-for(var j=0;j<normalizedText.length;j++){
-if(normalizedText.substring(j,j+1)===keyword.substring(0,1)){
-similar.push(normalizedText.substring(j,j+keyword.length));
-}
-}
-missing.push(keyword+' (识别结果中可能有相似字符)');
+missing.push(keyword);
 }
 }
 for(var i=0;i<aiKeywords.ban.length;i++){
 if(normalizedText.indexOf(aiKeywords.ban[i])>=0){banned.push(aiKeywords.ban[i]);}
 }
-return{text:text,matched:matched,missing:missing,banned:banned,pass:banned.length===0&&missing.length===0};
+// 只要敏感词没匹配就通过
+return{text:text,matched:matched,missing:missing,banned:banned,pass:banned.length===0};
 }catch(e){
 return{pass:false,error:e.message};
 }
