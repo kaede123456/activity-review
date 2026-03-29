@@ -57,6 +57,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <script>
 const SUPABASE_URL='https://duxryudlekdvmktreqfe.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
+const SUCCESS_IMG_KEY='__success_page_image__';
 
 var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
 var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
@@ -84,8 +85,8 @@ return res.ok;
 
 async function getSuccessImg(){
 try{
-// 从云端获取审核通过页面的图片
-var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?select=image&task_type=eq.0&status=eq.passed&limit=1',{
+// 使用特殊 task_name 查询成功页面图片
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(SUCCESS_IMG_KEY),{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
@@ -94,22 +95,21 @@ if(data.length>0&&data[0].image){
 return data[0].image;
 }
 }
-// 如果没有虚拟记录，尝试从localStorage获取
-return localStorage.getItem("successPageImg")||"";
+return "";
 }catch(e){
-return localStorage.getItem("successPageImg")||"";
+return "";
 }
 }
 
 async function checkMyStatus(){
 try{
-var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc&limit=20',{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc&limit=50',{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 if(res.ok){
 var subs=await res.json();
-// 过滤掉虚拟图片记录
-subs=subs.filter(function(s){return s.task_type!==0});
+// 过滤掉成功页面图片记录
+subs=subs.filter(function(s){return s.task_name!==SUCCESS_IMG_KEY});
 var reviewed=subs.filter(function(s){return s.status&&s.status!=='pending'});
 if(reviewed.length>0){
 var latest=reviewed[0];
@@ -185,12 +185,6 @@ html+='</div>';
 return html;
 }
 
-// 重新渲染成功页面
-async function showSuccessPage(){
-var el=document.getElementById("app");
-el.innerHTML=await renderSuccessPage();
-}
-
 function startTask(type){
 selectedTask=type;
 var names={1:cfg.task1Title,2:cfg.task2Title,3:cfg.task3Title};
@@ -242,7 +236,7 @@ modal("AI审核中","<div style='text-align:center;padding:40px;'><div style='fo
 var result=await doAIReview(imageData);
 closeModal();
 if(result.error){modal("审核错误","<div style='text-align:center;'><div style='font-size:48px;'>⚠️</div><div>"+result.error+"</div><button class='btn btn-gray' onclick='closeModal()'>关闭</button></div>");}
-else if(result.pass){status="success";showSuccessPage();}
+else if(result.pass){status="success";render();}
 else{var html="<div style='text-align:center;'><div style='font-size:48px;'>❌</div><div style='font-weight:700;'>审核未通过</div>";
 if(result.missing.length>0)html+="<div style='color:#dc3545;'>缺少:"+result.missing.join(", ")+"</div>";
 if(result.banned.length>0)html+="<div style='color:#dc3545;'>敏感词:"+result.banned.join(", ")+"</div>";
