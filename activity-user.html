@@ -68,8 +68,8 @@ var cfg={title:"27海研赴岸网盘活动",subTitle:"下方任务三选一即�
 var aiKeywords={required:["海研赴岸","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 var status="tasks",selectedFile=null,selectedTask=null;
 var checkInterval=null;
-// 预加载 OCR worker
 var ocrWorker=null;
+var task2ImageUrl="";
 
 function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},3000);}
 function modal(title,body){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").classList.add("show");}
@@ -89,7 +89,23 @@ preloadOCR();
 
 async function loadCloudData(){
 await Promise.all([loadCloudConfig(), loadCloudKeywords()]);
+// 预加载任务二参考图
+await loadTask2ImgCache();
 render();
+}
+
+async function loadTask2ImgCache(){
+try{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(TASK2_IMG_KEY),{
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+if(res.ok){
+var data=await res.json();
+if(data.length>0&&data[0].image){
+task2ImageUrl=data[0].image;
+}
+}
+}catch(e){}
 }
 
 async function loadCloudConfig(){
@@ -244,7 +260,11 @@ kwHtml+='</div>';
 }
 var task2Html='';
 if(type===2){
-task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#666;margin-bottom:5px;">任务二参考图片</div><div style="color:#999;">加载中...</div></div>';
+if(task2ImageUrl){
+task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#666;margin-bottom:5px;">任务二参考图片（领取海报）</div><img src="'+task2ImageUrl+'" style="max-width:100%;border-radius:8px;margin:5px 0;" onerror="this.parentElement.innerHTML=\'<div style=color:#999;>图片加载失败</div>\'"></div>';
+}else{
+task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#999;">暂无参考图片</div></div>';
+}
 }
 var body='<p style="text-align:center;color:#666;margin-bottom:10px;">'+names[type]+' '+auditLabel+'</p>'+kwHtml+task2Html+
 '<div class="upload-area" onclick="document.getElementById(\'fileInput\').click()"><div style="font-size:32px;">📷</div><div style="color:#666;margin-top:10px;">点击上传图片</div><div id="preview"></div></div>'+
@@ -252,24 +272,6 @@ var body='<p style="text-align:center;color:#666;margin-bottom:10px;">'+names[ty
 '<button class="btn" id="submitBtn" onclick="submitTask()" disabled>📤 提交审核</button>'+
 '<button class="btn" onclick="closeModal()" style="background:#6b7280;margin-top:10px;">取消</button>';
 modal('上传截图 - '+names[type],body);
-if(type===2)loadTask2Img();
-}
-
-async function loadTask2Img(){
-try{
-var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(TASK2_IMG_KEY),{
-headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-});
-if(res.ok){
-var data=await res.json();
-var el=document.getElementById('task2RefImg');
-if(el&&data.length>0&&data[0].image){
-el.innerHTML='<div style="color:#666;margin-bottom:5px;">任务二参考图片（领取海报）</div><img src="'+data[0].image+'" style="max-width:100%;border-radius:8px;margin:5px 0;">';
-}else if(el){
-el.innerHTML='<div style="color:#999;">暂无参考图片</div>';
-}
-}
-}catch(e){}
 }
 
 function handleFile(file){
