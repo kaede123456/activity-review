@@ -261,7 +261,7 @@ kwHtml+='</div>';
 var task2Html='';
 if(type===2){
 if(task2ImageUrl){
-task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#666;margin-bottom:5px;">任务二参考图片（领取海报）</div><img src="'+task2ImageUrl+'" style="max-width:100%;border-radius:8px;margin:5px 0;" onerror="this.parentElement.innerHTML=\'<div style=color:#999;>图片加载失败</div>\'"></div>';
+task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#f59e0b;font-size:12px;margin-bottom:5px;">⏳ 图片加载较慢，请稍等片刻</div><div style="color:#666;margin-bottom:5px;">任务二参考图片（领取海报）</div><img src="'+task2ImageUrl+'" style="max-width:100%;border-radius:8px;margin:5px 0;" onload="document.getElementById(\'task2RefImg\').innerHTML=\'<div style=color:#666;margin-bottom:5px;>任务二参考图片（领取海报）</div><img src='+task2ImageUrl+' style=max-width:100%;border-radius:8px;margin:5px 0;>'" onerror="this.parentElement.innerHTML=\'<div style=color:#999;>图片加载失败</div>\'"></div>';
 }else{
 task2Html='<div id="task2RefImg" style="text-align:center;margin:10px 0;"><div style="color:#999;">暂无参考图片</div></div>';
 }
