@@ -106,14 +106,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <div class="editor-group"><label class="editor-label">任务二描述</label><textarea class="editor-textarea" id="cfg_t2_desc"></textarea></div>
 <div class="editor-group"><label class="editor-label">任务三标题</label><input type="text" class="editor-input" id="cfg_t3_title"></div>
 <div class="editor-group"><label class="editor-label">任务三描述</label><textarea class="editor-textarea" id="cfg_t3_desc"></textarea></div>
-<button class="btn btn-green" onclick="saveConfig()">保存配置</button>
+<button class="btn btn-green" onclick="saveConfig()">💾 保存到云端</button>
 </div>
 
 <div class="editor-section">
 <div class="editor-title">🔑 AI审核关键词配置</div>
 <div class="editor-group"><label class="editor-label">必须包含关键词（每行一个）</label><textarea class="editor-textarea" id="kw_required" style="min-height:80px;"></textarea></div>
 <div class="editor-group"><label class="editor-label">敏感词（检测到直接拒绝）</label><textarea class="editor-textarea" id="kw_ban" style="min-height:80px;"></textarea></div>
-<button class="btn btn-green" onclick="saveKeywords()">保存关键词</button>
+<button class="btn btn-green" onclick="saveKeywords()">💾 保存到云端</button>
 </div>
 
 <div class="editor-section">
@@ -129,7 +129,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <div id="imgPreview" class="upload-preview" style="display:none;"></div>
 </div>
 <div class="editor-group"><label class="editor-label">或输入图片URL</label><input type="text" class="editor-input" id="imgUrl" placeholder="图片链接"></div>
-<button class="btn btn-green" onclick="saveImg()">保存到云端</button>
+<button class="btn btn-green" onclick="saveImg()">💾 保存到云端</button>
 <button class="btn btn-gray" onclick="clearImg()" style="margin-top:10px;">清除图片</button>
 </div>
 </div>
@@ -148,27 +148,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 const SUPABASE_URL='https://duxryudlekdvmktreqfe.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
 const SUCCESS_IMG_KEY='__success_page_image__';
+const CONFIG_KEY='__activity_config__';
+const KEYWORDS_KEY='__ai_keywords__';
 
 var DEFAULT_PASSWORD="admin123";
 var currentTab="pending";
 var currentView="review";
 var imgData=null;
-var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
-var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
+var cfg={title:"27妍稀裤网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐妍稀裤，浏览量达到50后截图一张"};
+var aiKeywords={required:["妍稀裤","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 
 function init(){
 var p=localStorage.getItem("adminPassword");
 if(!p)localStorage.setItem("adminPassword",DEFAULT_PASSWORD);
-loadCfg();
 }
 init();
-
-function loadCfg(){
-var c=localStorage.getItem("cfg");
-if(c)cfg=JSON.parse(c);
-var k=localStorage.getItem("aiKeywords");
-if(k)aiKeywords=JSON.parse(k);
-}
 
 function toast(msg){
 var t=document.getElementById("toast");
@@ -191,7 +185,7 @@ var realPwd=localStorage.getItem("adminPassword")||DEFAULT_PASSWORD;
 if(pwd===realPwd){
 document.getElementById("loginPage").classList.add("hidden");
 document.getElementById("adminPage").classList.remove("hidden");
-loadData();
+loadCloudData();
 }else{
 document.getElementById("loginError").style.display="block";
 }
@@ -209,8 +203,41 @@ document.getElementById("reviewView").classList.toggle("hidden",view!=="review")
 document.getElementById("configView").classList.toggle("hidden",view!=="config");
 document.getElementById("navReview").classList.toggle("active",view==="review");
 document.getElementById("navConfig").classList.toggle("active",view==="config");
-if(view==="config")loadEditor();
 if(view==="review")loadData();
+}
+
+async function loadCloudData(){
+// 从云端加载配置
+await Promise.all([loadCloudConfig(), loadCloudKeywords()]);
+loadEditor();
+}
+
+async function loadCloudConfig(){
+try{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(CONFIG_KEY),{
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+if(res.ok){
+var data=await res.json();
+if(data.length>0&&data[0].image){
+try{cfg=JSON.parse(data[0].image);}catch(e){}
+}
+}
+}catch(e){console.log('loadCloudConfig error:',e);}
+}
+
+async function loadCloudKeywords(){
+try{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(KEYWORDS_KEY),{
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+if(res.ok){
+var data=await res.json();
+if(data.length>0&&data[0].image){
+try{aiKeywords=JSON.parse(data[0].image);}catch(e){}
+}
+}
+}catch(e){console.log('loadCloudKeywords error:',e);}
 }
 
 function loadEditor(){
@@ -227,7 +254,7 @@ document.getElementById("kw_ban").value=aiKeywords.ban.join("\n");
 loadCurrentImg();
 }
 
-function saveConfig(){
+async function saveConfig(){
 cfg.title=document.getElementById("cfg_title").value;
 cfg.subTitle=document.getElementById("cfg_subtitle").value;
 cfg.task1Title=document.getElementById("cfg_t1_title").value;
@@ -236,17 +263,17 @@ cfg.task2Title=document.getElementById("cfg_t2_title").value;
 cfg.task2Desc=document.getElementById("cfg_t2_desc").value;
 cfg.task3Title=document.getElementById("cfg_t3_title").value;
 cfg.task3Desc=document.getElementById("cfg_t3_desc").value;
-localStorage.setItem("cfg",JSON.stringify(cfg));
-toast("配置已保存");
+await saveRecord(CONFIG_KEY, JSON.stringify(cfg));
+toast("配置已保存到云端！");
 }
 
-function saveKeywords(){
+async function saveKeywords(){
 var req=document.getElementById("kw_required").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
 var ban=document.getElementById("kw_ban").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
 aiKeywords.required=req;
 aiKeywords.ban=ban;
-localStorage.setItem("aiKeywords",JSON.stringify(aiKeywords));
-toast("关键词已保存");
+await saveRecord(KEYWORDS_KEY, JSON.stringify(aiKeywords));
+toast("关键词已保存到云端！");
 }
 
 function handleImg(file){
@@ -263,7 +290,6 @@ reader.readAsDataURL(file);
 
 async function loadCurrentImg(){
 try{
-// 使用特殊 task_name 查询成功页面图片
 var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(SUCCESS_IMG_KEY),{
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
@@ -277,57 +303,45 @@ document.getElementById("currentImg").style.display="block";
 }catch(e){console.log('loadCurrentImg error:',e);}
 }
 
+async function saveRecord(key, value){
+try{
+// 先查找是否已有记录
+var checkRes=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(key),{
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+var existing=await checkRes.json();
+if(existing.length>0){
+// 更新
+await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing[0].id,{
+method:'PATCH',
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+body:JSON.stringify({image:value})
+});
+}else{
+// 创建
+await fetch(SUPABASE_URL+'/rest/v1/submissions',{
+method:'POST',
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+body:JSON.stringify({task_type:99,task_name:key,image:value,status:'passed'})
+});
+}
+return true;
+}catch(e){return false;}
+}
+
 async function saveImg(){
 var url=document.getElementById("imgUrl").value.trim();
 var toSave=imgData||url;
 if(!toSave){toast("请上传图片或输入URL");return;}
-
-try{
-// 先查找是否已有成功页面图片记录
-var checkRes=await fetch(SUPABASE_URL+'/rest/v1/submissions?task_name=eq.'+encodeURIComponent(SUCCESS_IMG_KEY),{
-headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-});
-var existing=await checkRes.json();
-
-if(existing.length>0){
-// 更新已有记录
-var updateRes=await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing[0].id,{
-method:'PATCH',
-headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-body:JSON.stringify({image:toSave})
-});
-if(updateRes.ok){
-localStorage.setItem("successPageImg",toSave);
-toast("图片已更新！");
-loadCurrentImg();
-document.getElementById("imgPreview").style.display="none";
-imgData=null;
-}else{
-toast("更新失败");
-}
-}else{
-// 创建新记录
-var createRes=await fetch(SUPABASE_URL+'/rest/v1/submissions',{
-method:'POST',
-headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
-body:JSON.stringify({
-task_type:99,
-task_name:SUCCESS_IMG_KEY,
-image:toSave,
-status:'passed'
-})
-});
-if(createRes.ok){
-localStorage.setItem("successPageImg",toSave);
-toast("图片已保存！");
+var ok=await saveRecord(SUCCESS_IMG_KEY, toSave);
+if(ok){
+toast("图片已保存到云端！");
 loadCurrentImg();
 document.getElementById("imgPreview").style.display="none";
 imgData=null;
 }else{
 toast("保存失败");
 }
-}
-}catch(e){toast("错误："+e.message);}
 }
 
 async function clearImg(){
@@ -343,7 +357,6 @@ method:'DELETE',
 headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
 });
 }
-localStorage.removeItem("successPageImg");
 document.getElementById("imgUrl").value="";
 document.getElementById("imgPreview").style.display="none";
 document.getElementById("currentImg").style.display="none";
@@ -384,8 +397,10 @@ async function loadData(){await renderAdmin();}
 
 async function renderAdmin(){
 var subs=await getSubmissions();
-// 过滤掉成功页面图片记录
-subs=subs.filter(function(s){return s.task_name!==SUCCESS_IMG_KEY});
+// 过滤掉特殊记录
+subs=subs.filter(function(s){
+return s.task_name!==SUCCESS_IMG_KEY&&s.task_name!==CONFIG_KEY&&s.task_name!==KEYWORDS_KEY;
+});
 var stats={pending:subs.filter(function(x){return x.status==='pending'}).length,passed:subs.filter(function(x){return x.status==='passed'}).length,rejected:subs.filter(function(x){return x.status==='rejected'}).length};
 document.getElementById("statPending").textContent=stats.pending;
 document.getElementById("statPassed").textContent=stats.passed;
