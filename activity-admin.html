@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -51,12 +51,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 .nav-btn{flex:1;padding:10px;background:#f3f4f6;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
 .nav-btn.active{background:#8b5cf6;color:#fff}
 .hidden{display:none}
-.lock-msg{color:#dc3545;font-size:13px;margin-top:10px;background:#fee2e2;padding:10px;border-radius:8px;display:none}
-.strength-bar{height:4px;background:#e5e7eb;border-radius:2px;margin-top:8px;overflow:hidden}
-.strength-fill{height:100%;transition:width 0.3s,background 0.3s;width:0%}
-.change-pass-box{background:#fff;border-radius:18px;padding:40px;max-width:340px;margin:80px auto;text-align:center;box-shadow:0 8px 24px rgba(124,58,237,0.15)}
-.change-pass-box h2{color:#4c1d95;margin-bottom:15px;font-size:18px}
-.change-pass-box p{color:#666;font-size:13px;margin-bottom:15px;text-align:left}
+.upload-preview{max-width:100%;border-radius:8px;margin:10px 0;text-align:center}
+.upload-preview img{max-width:100%;border-radius:8px}
+.loading{color:#8b5cf6}
 </style>
 </head>
 <body>
@@ -66,50 +63,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <div class="login-box">
 <h2>🔐 管理后台</h2>
 <input type="password" class="login-input" id="passwordInput" placeholder="请输入管理员密码" onkeypress="if(event.key==='Enter')login()">
-<button class="login-btn" id="loginBtn" onclick="login()">登 录</button>
+<button class="login-btn" onclick="login()">登 录</button>
 <div class="login-error" id="loginError">密码错误，请重试</div>
-<div class="lock-msg" id="lockMessage"></div>
-</div>
-</div>
-
-<div id="changePassPage" class="container hidden">
-<div class="change-pass-box">
-<h2>🔑 首次登录</h2>
-<p>⚠️ 请立即设置新的管理员密码：</p>
-<p>• 至少8位字符<br>• 必须包含大写字母<br>• 必须包含小写字母<br>• 必须包含数字</p>
-<input type="password" class="login-input" id="newPass1" placeholder="设置新密码" oninput="checkStrength(this.value,'np')">
-<div class="strength-bar"><div class="strength-fill" id="npFill"></div></div>
-<div id="npText" style="font-size:12px;color:#999;margin-top:5px;text-align:left;"></div>
-<input type="password" class="login-input" id="newPass2" placeholder="确认新密码" style="margin-top:15px;" onkeypress="if(event.key==='Enter')changeInitialPass()">
-<button class="login-btn" onclick="changeInitialPass()" style="margin-top:15px;">确认修改</button>
 </div>
 </div>
 
 <div id="adminPage" class="container hidden">
 <div class="admin-header">
 <h1>📊 活动管理后台</h1>
-<p>审核用户提交，管理活动配置</p>
+<p id="syncStatus"><span class="loading">⏳ 加载中...</span></p>
 </div>
+
 <div class="nav">
 <button class="nav-btn active" onclick="switchView('review')" id="navReview">📋 审核管理</button>
 <button class="nav-btn" onclick="switchView('config')" id="navConfig">⚙️ 配置管理</button>
 </div>
+
 <div id="reviewView">
 <div class="card">
 <div class="card-title">📈 审核统计</div>
 <div class="stat-grid">
-<div class="stat-card"><div class="stat-num" id="statPending">0</div><div class="stat-label">待审核</div></div>
-<div class="stat-card"><div class="stat-num" id="statPassed">0</div><div class="stat-label">已通过</div></div>
-<div class="stat-card"><div class="stat-num" id="statRejected">0</div><div class="stat-label">已拒绝</div></div>
+<div class="stat-card"><div class="stat-num" id="statPending">-</div><div class="stat-label">待审核</div></div>
+<div class="stat-card"><div class="stat-num" id="statPassed">-</div><div class="stat-label">已通过</div></div>
+<div class="stat-card"><div class="stat-num" id="statRejected">-</div><div class="stat-label">已拒绝</div></div>
 </div>
 <div class="tabs">
-<div class="tab active" onclick="switchTab('pending')" id="tabPending">待审核 (0)</div>
+<div class="tab active" onclick="switchTab('pending')" id="tabPending">待审核 (-)</div>
 <div class="tab" onclick="switchTab('passed')">已通过</div>
 <div class="tab" onclick="switchTab('rejected')">已拒绝</div>
 </div>
-<div id="reviewList"></div>
+<div id="reviewList"><div style="text-align:center;color:#999;padding:40px;">加载中...</div></div>
 </div>
 </div>
+
 <div id="configView" class="hidden">
 <div class="editor-section">
 <div class="editor-title">🎨 活动配置</div>
@@ -121,21 +107,51 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 <div class="editor-group"><label class="editor-label">任务二描述</label><textarea class="editor-textarea" id="cfg_t2_desc"></textarea></div>
 <div class="editor-group"><label class="editor-label">任务三标题</label><input type="text" class="editor-input" id="cfg_t3_title"></div>
 <div class="editor-group"><label class="editor-label">任务三描述</label><textarea class="editor-textarea" id="cfg_t3_desc"></textarea></div>
-<button class="btn btn-green" onclick="saveConfig()">保存配置</button>
+<button class="btn btn-green" onclick="saveConfig()">💾 保存到云端</button>
 </div>
+
 <div class="editor-section">
-<div class="editor-title">🔑 任务一 AI审核关键词配置</div>
-<div class="editor-group"><label class="editor-label">必须包含（每行一个）</label><textarea class="editor-textarea" id="kw_required" style="min-height:80px;"></textarea></div>
+<div class="editor-title">🔑 AI审核关键词配置</div>
+<div class="editor-group"><label class="editor-label">必须包含关键词（每行一个）</label><textarea class="editor-textarea" id="kw_required" style="min-height:80px;"></textarea></div>
 <div class="editor-group"><label class="editor-label">敏感词（检测到直接拒绝）</label><textarea class="editor-textarea" id="kw_ban" style="min-height:80px;"></textarea></div>
-<button class="btn btn-green" onclick="saveKeywords()">保存关键词</button>
+<button class="btn btn-green" onclick="saveKeywords()">💾 保存到云端</button>
 </div>
+
 <div class="editor-section">
-<div class="editor-title">🔐 修改登录密码</div>
-<div class="editor-group"><label class="editor-label">新密码</label><input type="password" class="editor-input" id="newPassword" placeholder="输入新密码" oninput="checkStrength(this.value,'cur')"><div class="strength-bar"><div class="strength-fill" id="curFill"></div></div><div id="curText" style="font-size:12px;color:#999;margin-top:5px;"></div></div>
-<div class="editor-group"><label class="editor-label">确认密码</label><input type="password" class="editor-input" id="confirmPassword" placeholder="再次输入新密码"></div>
-<button class="btn btn-purple" onclick="changePassword()">修改密码</button>
+<div class="editor-title">🎁 审核通过页面图片</div>
+<div class="editor-group">
+<label class="editor-label">上传用户审核通过后显示的图片</label>
+<div id="currentImg" class="upload-preview" style="display:none;"></div>
+<div style="border:2px dashed #ddd6fe;padding:20px;border-radius:8px;text-align:center;margin:10px 0;">
+<div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+<input type="file" id="imgInput" accept="image/*" onchange="handleImg(this.files[0])" style="display:none;">
+<button class="btn btn-purple" onclick="document.getElementById('imgInput').click()" style="margin:0;">上传图片</button>
+</div>
+<div id="imgPreview" class="upload-preview" style="display:none;"></div>
+</div>
+<div class="editor-group"><label class="editor-label">或输入图片URL</label><input type="text" class="editor-input" id="imgUrl" placeholder="图片链接"></div>
+<button class="btn btn-green" onclick="saveImg()">💾 保存到云端</button>
+<button class="btn btn-gray" onclick="clearImg()" style="margin-top:10px;">清除图片</button>
+</div>
+
+<div class="editor-section">
+<div class="editor-title">📋 任务二参考图片</div>
+<div class="editor-group">
+<label class="editor-label">上传任务二的海报/参考图（用户可在任务中查看）</label>
+<div id="currentTask2Img" class="upload-preview" style="display:none;"></div>
+<div style="border:2px dashed #ddd6fe;padding:20px;border-radius:8px;text-align:center;margin:10px 0;">
+<div style="font-size:32px;margin-bottom:10px;">🖼️</div>
+<input type="file" id="task2ImgInput" accept="image/*" onchange="handleTask2Img(this.files[0])" style="display:none;">
+<button class="btn btn-purple" onclick="document.getElementById('task2ImgInput').click()" style="margin:0;">上传任务二图片</button>
+</div>
+<div id="task2ImgPreview" class="upload-preview" style="display:none;"></div>
+</div>
+<div class="editor-group"><label class="editor-label">或输入图片URL</label><input type="text" class="editor-input" id="task2ImgUrl" placeholder="图片链接"></div>
+<button class="btn btn-green" onclick="saveTask2Img()">💾 保存到云端</button>
+<button class="btn btn-gray" onclick="clearTask2Img()" style="margin-top:10px;">清除图片</button>
 </div>
 </div>
+
 <button class="btn btn-gray" onclick="logout()" style="margin-top:20px;">退出登录</button>
 </div>
 
@@ -147,105 +163,352 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:linear-g
 </div>
 
 <script>
-var CONFIG={MAX_ATTEMPTS:5,LOCK_DURATION:900,SESSION_TIMEOUT:1800,MIN_PASSWORD_LEN:8};
-var DEFAULT_HASH="240be518fabd2724ddb6f04eeb9d5b2e1b4ed9e3e7e4b6a8a9d0c1f2e3d4c5b6";
+const SUPABASE_URL='https://duxryudlekdvmktreqfe.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHJ5dWRsZWtkdm1rdHJlcWZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTY1NDgsImV4cCI6MjA5MDI3MjU0OH0.WCinXLC9obmkQlvMj5oDaH7Mvw-oWH0xTl2NRldE-4I';
+const SUCCESS_IMG_KEY='__success_page_image__';
+const CONFIG_KEY='__activity_config__';
+const KEYWORDS_KEY='__ai_keywords__';
+const TASK2_IMG_KEY='__task2_image__';
 
-var SHA256=function(s){
-function R(x,c){return(x>>>c)|(x<<(32-c));}
-var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-var h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-s=encodeURIComponent(s).replace(/%([0-9A-F]{2})/g,function(m,p){return String.fromCharCode(parseInt(p,16));});
-var len=s.length*8,m=[];
-for(var i=0;i<s.length;i++)m[i>>2]|=s.charCodeAt(i)<<(8*(i%4));
-m[s.length>>2]|=0x80<<(8*(s.length%4));m[m.length-1]=len;
-for(var i=0;i<m.length;i+=16){
-var w=Array(64).fill(0);
-for(var j=0;j<16;j++)w[j]=m[i+j]|0;
-for(j=16;j<64;j++)w[j]=(R(w[j-2],17)^R(w[j-2],19)^w[j-2]>>>10+w[j-7]+R(w[j-15],7)^R(w[j-15],18)^w[j-15]>>>10)|0;
-var a=h[0],b=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
-for(j=0;j<64;j++){
-var t1=(hh+(R(e,6)^R(e,11)^R(e,25))+(e&f^~e&g)+K[j]+w[j])|0;
-var t2=((R(a,2)^R(a,13)^R(a,22))+(a&b^a&c^b&c))|0;
-hh=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
-}
-h[0]=(h[0]+a)|0;h[1]=(h[1]+b)|0;h[2]=(h[2]+c)|0;h[3]=(h[3]+d)|0;h[4]=(h[4]+e)|0;h[5]=(h[5]+f)|0;h[6]=(h[6]+g)|0;h[7]=(h[7]+hh)|0;
-}
-return h.map(function(x){return x.toString(16).padStart(8,'0');}).join('');
-};
-
-var SEC={prefix:'🔐SEC'};
-SEC.encode=function(d){try{return this.prefix+btoa(unescape(encodeURIComponent(JSON.stringify(d))));}catch(e){return null;}};
-SEC.decode=function(s){try{if(!s||!s.startsWith(this.prefix))return null;return JSON.parse(decodeURIComponent(escape(atob(s.slice(this.prefix.length)))));}catch(e){return null;}};
-
-function h(s){if(!s)return'';return s.replace(/[&<>"'\x00-\x1f]/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'\''}[m]||'';});}
-
-var cfg={title:"27研料库网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐研料库，浏览量达到50后截图一张"};
-var aiKeywords={required:["研料库","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
-var currentTab="pending",currentView="review";
+var DEFAULT_PASSWORD="admin123";
+var currentTab="pending";
+var currentView="review";
+var imgData=null;
+var cachedAll=null;
+var cfg={title:"27海研赴岸网盘活动",subTitle:"下方任务三选一即可",task1Title:"小红书评论区推荐",task1Desc:"在小红书笔记评论区中回答求资源的用户，每篇截图1张共3张",task2Title:"转发考研群推荐",task2Desc:"领取专属海报后发布在群里，然后提交截图两张",task3Title:"小红书发帖推荐",task3Desc:"发布笔记推荐妍稀裤，浏览量达到50后截图一张"};
+var aiKeywords={required:["妍稀裤","小红书","评论","考研"],ban:["微信","QQ号","广告","二维码"]};
 
 function init(){
-if(!localStorage.getItem("adminPassHash")){localStorage.setItem("adminPassHash",DEFAULT_HASH);}
-if(!localStorage.getItem("loginAttempts")){localStorage.setItem("loginAttempts",JSON.stringify({count:0,lockedUntil:0}));}
-var c=localStorage.getItem("cfg");if(c)cfg=SEC.decode(c)||cfg;
-var k=localStorage.getItem("aiKeywords");if(k)aiKeywords=SEC.decode(k)||aiKeywords;
-checkSession();
-if(localStorage.getItem("adminPassHash")===DEFAULT_HASH){
-document.getElementById("loginPage").classList.add("hidden");
-document.getElementById("changePassPage").classList.remove("hidden");
+var p=localStorage.getItem("adminPassword");
+if(!p)localStorage.setItem("adminPassword",DEFAULT_PASSWORD);
 }
-}
+init();
 
-function checkSession(){
-var sid=sessionStorage.getItem("adminSession");
-if(sid){var s=JSON.parse(sid);if(Date.now()-s.lastActive<CONFIG.SESSION_TIMEOUT*1000){s.lastActive=Date.now();sessionStorage.setItem("adminSession",JSON.stringify(s));showAdminPage();return;}sessionStorage.removeItem("adminSession");}
+function toast(msg){
+var t=document.getElementById("toast");
+t.textContent=msg;
+t.classList.add("show");
+setTimeout(function(){t.classList.remove("show");},3000);
 }
 
-function checkStrength(pwd,id){
-var fill=document.getElementById(id+"Fill");var text=document.getElementById(id+"Text");if(!fill)return;
-var score=0;
-if(pwd.length>=8)score++;if(pwd.length>=12)score++;if(/[a-z]/.test(pwd)&&/[A-Z]/.test(pwd))score++;if(/\d/.test(pwd))score++;if(/[!@#$%^&*]/.test(pwd))score++;
-var colors=['#dc3545','#fd7e14','#ffc107','#28a745','#20c997','#0d6efd'];var labels=['','弱','中等','良好','强','非常强'];
-fill.style.width=(score*20)+'%';fill.style.background=colors[score]||'#dc3545';text.textContent=pwd?'密码强度: '+labels[score]:'';text.style.color=colors[score]||'#999';
+function modal(title,body){
+document.getElementById("modalTitle").textContent=title;
+document.getElementById("modalBody").innerHTML=body;
+document.getElementById("modal").classList.add("show");
 }
-
-function login(){
-var pwd=document.getElementById("passwordInput").value;
-var errEl=document.getElementById("loginError");var lockEl=document.getElementById("lockMessage");
-var lockInfo=JSON.parse(localStorage.getItem("loginAttempts")||'{"count":0,"lockedUntil":0}');
-var now=Date.now();
-if(now<lockInfo.lockedUntil){var rem=Math.ceil((lockInfo.lockedUntil-now)/1000);lockEl.textContent='登录已锁定，请在 '+Math.floor(rem/60)+' 分 '+rem%60+' 秒后重试';lockEl.style.display='block';errEl.style.display='none';return;}
-if(now>=lockInfo.lockedUntil){lockInfo.count=0;lockInfo.lockedUntil=0;localStorage.setItem("loginAttempts",JSON.stringify(lockInfo));lockEl.style.display='none';}
-var hash=SHA256(pwd);var stored=localStorage.getItem("adminPassHash");
-if(hash===stored){lockInfo.count=0;localStorage.setItem("loginAttempts",JSON.stringify(lockInfo));sessionStorage.setItem("adminSession",JSON.stringify({start:now,lastActive:now}));document.getElementById("passwordInput").value='';errEl.style.display='none';showAdminPage();}else{
-lockInfo.count++;if(lockInfo.count>=CONFIG.MAX_ATTEMPTS){lockInfo.lockedUntil=now+CONFIG.LOCK_DURATION*1000;lockEl.textContent='登录失败次数过多，锁定 '+Math.floor(CONFIG.LOCK_DURATION/60)+' 分钟';lockEl.style.display='block';errEl.style.display='none';}else{errEl.textContent='密码错误，剩余 '+(CONFIG.MAX_ATTEMPTS-lockInfo.count)+' 次机会';errEl.style.display='block';}
-localStorage.setItem("loginAttempts",JSON.stringify(lockInfo));
-}
-}
-
-function showAdminPage(){document.getElementById("loginPage").classList.add("hidden");document.getElementById("changePassPage").classList.add("hidden");document.getElementById("adminPage").classList.remove("hidden");renderAdmin();setInterval(function(){var sid=sessionStorage.getItem("adminSession");if(sid){var s=JSON.parse(sid);s.lastActive=Date.now();sessionStorage.setItem("adminSession",JSON.stringify(s));}},60000);}
-function logout(){sessionStorage.removeItem("adminSession");document.getElementById("adminPage").classList.add("hidden");document.getElementById("loginPage").classList.remove("hidden");document.getElementById("passwordInput").value='';}
-
-function changeInitialPass(){var p1=document.getElementById("newPass1").value;var p2=document.getElementById("newPass2").value;if(p1.length<CONFIG.MIN_PASSWORD_LEN){toast('密码至少'+CONFIG.MIN_PASSWORD_LEN+'位');return;}if(!/[a-z]/.test(p1)||!/[A-Z]/.test(p1)||!/\d/.test(p1)){toast('密码必须包含大小写字母和数字');return;}if(p1!==p2){toast('两次密码不一致');return;}if(p1.toLowerCase()==='admin123'||p1==='password'){toast('禁止使用弱密码');return;}localStorage.setItem("adminPassHash",SHA256(p1));toast('密码设置成功，请重新登录');setTimeout(logout,1500);}
-function changePassword(){var newP=document.getElementById("newPassword").value;var confirmP=document.getElementById("confirmPassword").value;if(newP.length<CONFIG.MIN_PASSWORD_LEN){toast('密码至少'+CONFIG.MIN_PASSWORD_LEN+'位');return;}if(!/[a-z]/.test(newP)||!/[A-Z]/.test(newP)||!/\d/.test(newP)){toast('密码必须包含大小写字母和数字');return;}if(newP!==confirmP){toast('两次密码不一致');return;}localStorage.setItem("adminPassHash",SHA256(newP));document.getElementById("newPassword").value='';document.getElementById("confirmPassword").value='';toast('密码修改成功');}
-
-function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
-function modal(title,body){document.getElementById("modalTitle").textContent=h(title);document.getElementById("modalBody").innerHTML=body;document.getElementById("modal").classList.add("show");}
 function closeModal(){document.getElementById("modal").classList.remove("show");}
 document.getElementById("modal").onclick=function(e){if(e.target===this)closeModal();};
 
-function switchView(view){currentView=view;document.getElementById("reviewView").classList.toggle("hidden",view!=="review");document.getElementById("configView").classList.toggle("hidden",view!=="config");document.getElementById("navReview").classList.toggle("active",view==="review");document.getElementById("navConfig").classList.toggle("active",view==="config");if(view==="config")loadEditor();if(view==="review")renderAdmin();}
-function loadEditor(){document.getElementById("cfg_title").value=h(cfg.title);document.getElementById("cfg_subtitle").value=h(cfg.subTitle);document.getElementById("cfg_t1_title").value=h(cfg.task1Title);document.getElementById("cfg_t1_desc").value=h(cfg.task1Desc);document.getElementById("cfg_t2_title").value=h(cfg.task2Title);document.getElementById("cfg_t2_desc").value=h(cfg.task2Desc);document.getElementById("cfg_t3_title").value=h(cfg.task3Title);document.getElementById("cfg_t3_desc").value=h(cfg.task3Desc);document.getElementById("kw_required").value=(aiKeywords.required||[]).join("\n");document.getElementById("kw_ban").value=(aiKeywords.ban||[]).join("\n");}
-function saveConfig(){cfg.title=document.getElementById("cfg_title").value;cfg.subTitle=document.getElementById("cfg_subtitle").value;cfg.task1Title=document.getElementById("cfg_t1_title").value;cfg.task1Desc=document.getElementById("cfg_t1_desc").value;cfg.task2Title=document.getElementById("cfg_t2_title").value;cfg.task2Desc=document.getElementById("cfg_t2_desc").value;cfg.task3Title=document.getElementById("cfg_t3_title").value;cfg.task3Desc=document.getElementById("cfg_t3_desc").value;var enc=SEC.encode(cfg);if(enc)localStorage.setItem("cfg",enc);toast("配置已保存");}
-function saveKeywords(){var req=document.getElementById("kw_required").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s;});var ban=document.getElementById("kw_ban").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s;});aiKeywords.required=req;aiKeywords.ban=ban;var enc=SEC.encode(aiKeywords);if(enc)localStorage.setItem("aiKeywords",enc);toast("关键词已保存");}
+function login(){
+var pwd=document.getElementById("passwordInput").value;
+var realPwd=localStorage.getItem("adminPassword")||DEFAULT_PASSWORD;
+if(pwd===realPwd){
+document.getElementById("loginPage").classList.add("hidden");
+document.getElementById("adminPage").classList.remove("hidden");
+loadData();
+}else{
+document.getElementById("loginError").style.display="block";
+}
+}
 
-function getSubs(){var d=localStorage.getItem("subs");return d?(SEC.decode(d)||[]):[];}
-function updateSub(id,st){var s=getSubs();for(var i=0;i<s.length;i++){if(s[i].id===id){s[i].status=st;s[i].reviewTime=new Date().toLocaleString();break;}}var enc=SEC.encode(s);if(enc)localStorage.setItem("subs",enc);}
-function renderAdmin(){var subs=getSubs();var st={pending:0,passed:0,rejected:0};for(var i=0;i<subs.length;i++){if(subs[i].status==="pending")st.pending++;else if(subs[i].status==="passed")st.passed++;else if(subs[i].status==="rejected")st.rejected++;}document.getElementById("statPending").textContent=st.pending;document.getElementById("statPassed").textContent=st.passed;document.getElementById("statRejected").textContent=st.rejected;document.getElementById("tabPending").textContent="待审核 ("+st.pending+")";renderList();}
-function switchTab(tab){currentTab=tab;document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active");});event.target.classList.add("active");renderList();}
-function renderList(){var subs=getSubs().filter(function(s){return s.status===currentTab;});var list=document.getElementById("reviewList");if(subs.length===0){var msgs={pending:"暂无待审核的提交",passed:"暂无已通过的记录",rejected:"暂无已拒绝的记录"};list.innerHTML='<div style="text-align:center;color:#999;padding:40px;">'+msgs[currentTab]+'</div>';return;}var html="";for(var i=0;i<subs.length;i++){var sub=subs[i];html+='<div class="review-item">';html+='<div class="review-header"><span style="font-weight:700;">'+h(sub.taskName||'')+'</span><span style="font-size:12px;color:#999;">'+h(sub.time||'')+'</span></div>';html+='<img src="'+h(sub.image||'')+'" class="review-image" onclick="showImg(this.src)">';if(sub.status==="pending"){html+='<div class="review-actions">';html+='<button class="btn btn-green btn-small" onclick="review('+sub.id+',\'passed\')">✅ 通过</button>';html+='<button class="btn btn-red btn-small" onclick="review('+sub.id+',\'rejected\')">❌ 拒绝</button>';html+='</div>';}else{html+='<div style="margin-top:10px;font-size:13px;color:'+(sub.status==="passed"?"#28a745":"#dc3545")+';">';html+='审核结果：<strong>'+(sub.status==="passed"?"已通过":"已拒绝")+'</strong>';if(sub.reviewTime)html+=' | '+h(sub.reviewTime);html+='</div>';}html+='</div>';}list.innerHTML=html;}
-function review(id,st){if(!confirm((st==="passed"?"通过":"拒绝")+"吗？"))return;updateSub(id,st);renderAdmin();toast("已处理");}
-function showImg(src){modal("截图预览",'<img src="'+h(src)+'" style="max-width:100%;border-radius:8px;"><button class="btn" onclick="closeModal()" style="margin-top:15px;">关闭</button>');}
-init();
+function logout(){
+document.getElementById("loginPage").classList.remove("hidden");
+document.getElementById("adminPage").classList.add("hidden");
+document.getElementById("passwordInput").value="";
+}
+
+function switchView(view){
+currentView=view;
+document.getElementById("reviewView").classList.toggle("hidden",view!=="review");
+document.getElementById("configView").classList.toggle("hidden",view!=="config");
+document.getElementById("navReview").classList.toggle("active",view==="review");
+document.getElementById("navConfig").classList.toggle("active",view==="config");
+if(view==="config")loadEditor();
+if(view==="review"&&cachedAll)renderAdmin(cachedAll);
+}
+
+async function loadData(){
+document.getElementById("syncStatus").innerHTML='<span class="loading">⏳ 加载中...</span>';
+// 10秒超时
+var timeout=new Promise(function(_,reject){setTimeout(function(){reject(new Error('超时'));},10000);});
+try{
+var res=await Promise.race([
+fetch(SUPABASE_URL+'/rest/v1/submissions?order=created_at.desc',{
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+}),
+timeout
+]);
+if(res.ok){
+cachedAll=await res.json();
+document.getElementById("syncStatus").innerHTML='☁️ 已连接云端 ✓ ('+cachedAll.length+'条)';
+renderAdmin(cachedAll);
+}else{
+document.getElementById("syncStatus").innerHTML='⚠️ 连接失败 ('+res.status+')';
+}
+}catch(e){
+document.getElementById("syncStatus").innerHTML='⚠️ 网络错误: '+e.message;
+}
+}
+
+function loadEditor(){
+document.getElementById("cfg_title").value=cfg.title;
+document.getElementById("cfg_subtitle").value=cfg.subTitle;
+document.getElementById("cfg_t1_title").value=cfg.task1Title;
+document.getElementById("cfg_t1_desc").value=cfg.task1Desc;
+document.getElementById("cfg_t2_title").value=cfg.task2Title;
+document.getElementById("cfg_t2_desc").value=cfg.task2Desc;
+document.getElementById("cfg_t3_title").value=cfg.task3Title;
+document.getElementById("cfg_t3_desc").value=cfg.task3Desc;
+document.getElementById("kw_required").value=aiKeywords.required.join("\n");
+document.getElementById("kw_ban").value=aiKeywords.ban.join("\n");
+// 显示当前成功页面图片
+if(cachedAll){
+var imgRec=cachedAll.filter(function(s){return s.task_name===SUCCESS_IMG_KEY})[0];
+if(imgRec&&imgRec.image){
+document.getElementById("currentImg").innerHTML='<div style="color:#666;margin-bottom:5px;">当前审核通过页面图片：</div><img src="'+imgRec.image+'" alt="当前">';
+document.getElementById("currentImg").style.display="block";
+}
+var task2Rec=cachedAll.filter(function(s){return s.task_name===TASK2_IMG_KEY})[0];
+if(task2Rec&&task2Rec.image){
+document.getElementById("currentTask2Img").innerHTML='<div style="color:#666;margin-bottom:5px;">当前任务二参考图：</div><img src="'+task2Rec.image+'" alt="当前">';
+document.getElementById("currentTask2Img").style.display="block";
+}
+}
+}
+
+async function saveConfig(){
+cfg.title=document.getElementById("cfg_title").value;
+cfg.subTitle=document.getElementById("cfg_subtitle").value;
+cfg.task1Title=document.getElementById("cfg_t1_title").value;
+cfg.task1Desc=document.getElementById("cfg_t1_desc").value;
+cfg.task2Title=document.getElementById("cfg_t2_title").value;
+cfg.task2Desc=document.getElementById("cfg_t2_desc").value;
+cfg.task3Title=document.getElementById("cfg_t3_title").value;
+cfg.task3Desc=document.getElementById("cfg_t3_desc").value;
+await saveRecord(CONFIG_KEY, JSON.stringify(cfg));
+toast("配置已保存到云端！");
+}
+
+async function saveKeywords(){
+var req=document.getElementById("kw_required").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
+var ban=document.getElementById("kw_ban").value.split("\n").map(function(s){return s.trim()}).filter(function(s){return s});
+aiKeywords.required=req;
+aiKeywords.ban=ban;
+await saveRecord(KEYWORDS_KEY, JSON.stringify(aiKeywords));
+toast("关键词已保存到云端！");
+}
+
+function handleImg(file){
+if(!file)return;
+var reader=new FileReader();
+reader.onload=function(e){
+imgData=e.target.result;
+document.getElementById("imgUrl").value="";
+document.getElementById("imgPreview").innerHTML='<img src="'+imgData+'" alt="预览">';
+document.getElementById("imgPreview").style.display="block";
+};
+reader.readAsDataURL(file);
+}
+
+var task2ImgData=null;
+function handleTask2Img(file){
+if(!file)return;
+var reader=new FileReader();
+reader.onload=function(e){
+task2ImgData=e.target.result;
+document.getElementById("task2ImgUrl").value="";
+document.getElementById("task2ImgPreview").innerHTML='<img src="'+task2ImgData+'" alt="预览">';
+document.getElementById("task2ImgPreview").style.display="block";
+};
+reader.readAsDataURL(file);
+}
+
+async function saveRecord(key, value){
+try{
+// 先从缓存查找
+var existing=cachedAll?cachedAll.filter(function(s){return s.task_name===key})[0]:null;
+if(existing&&existing.id){
+await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing.id,{
+method:'PATCH',
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+body:JSON.stringify({image:value})
+});
+}else{
+await fetch(SUPABASE_URL+'/rest/v1/submissions',{
+method:'POST',
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+body:JSON.stringify({task_type:99,task_name:key,image:value,status:'passed'})
+});
+}
+// 更新缓存
+if(cachedAll){
+var idx=cachedAll.findIndex(function(s){return s.task_name===key});
+if(idx>=0){
+cachedAll[idx].image=value;
+}else{
+cachedAll.unshift({task_name:key,image:value,status:'passed'});
+}
+}
+return true;
+}catch(e){return false;}
+}
+
+async function saveImg(){
+var url=document.getElementById("imgUrl").value.trim();
+var toSave=imgData||url;
+if(!toSave){toast("请上传图片或输入URL");return;}
+var ok=await saveRecord(SUCCESS_IMG_KEY, toSave);
+if(ok){
+toast("图片已保存到云端！");
+document.getElementById("currentImg").innerHTML='<div style="color:#666;margin-bottom:5px;">当前审核通过页面图片：</div><img src="'+toSave+'" alt="当前">';
+document.getElementById("currentImg").style.display="block";
+document.getElementById("imgPreview").style.display="none";
+imgData=null;
+}else{
+toast("保存失败");
+}
+}
+
+async function clearImg(){
+if(!confirm("确定清除图片吗？"))return;
+try{
+var existing=cachedAll?cachedAll.filter(function(s){return s.task_name===SUCCESS_IMG_KEY})[0]:null;
+if(existing&&existing.id){
+await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing.id,{
+method:'DELETE',
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+}
+document.getElementById("imgUrl").value="";
+document.getElementById("imgPreview").style.display="none";
+document.getElementById("currentImg").style.display="none";
+imgData=null;
+toast("已清除");
+}catch(e){toast("错误："+e.message);}
+}
+async function saveTask2Img(){
+var url=document.getElementById('task2ImgUrl').value.trim();
+var toSave=task2ImgData||url;
+if(!toSave){toast("请上传图片或输入URL");return;}
+var ok=await saveRecord(TASK2_IMG_KEY, toSave);
+if(ok){
+toast("任务二图片已保存！");
+document.getElementById('currentTask2Img').innerHTML='<div style="color:#666;margin-bottom:5px;">当前任务二参考图：</div><img src="'+toSave+'" alt="当前">';
+document.getElementById('currentTask2Img').style.display='block';
+document.getElementById('task2ImgPreview').style.display='none';
+task2ImgData=null;
+}else{toast("保存失败");}
+}
+
+async function clearTask2Img(){
+if(!confirm("确定清除吗？"))return;
+try{
+var existing=cachedAll?cachedAll.filter(function(s){return s.task_name===TASK2_IMG_KEY})[0]:null;
+if(existing&&existing.id){
+await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+existing.id,{
+method:'DELETE',
+headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+});
+}
+document.getElementById('task2ImgUrl').value='';
+document.getElementById('task2ImgPreview').style.display='none';
+document.getElementById('currentTask2Img').style.display='none';
+task2ImgData=null;
+toast("已清除");
+}catch(e){toast("错误:"+e.message);}
+}
+
+function renderAdmin(all){
+// 解析配置和关键词
+var cfgRec=all.filter(function(s){return s.task_name===CONFIG_KEY})[0];
+if(cfgRec&&cfgRec.image){
+try{cfg=JSON.parse(cfgRec.image);}catch(e){}
+}
+var kwRec=all.filter(function(s){return s.task_name===KEYWORDS_KEY})[0];
+if(kwRec&&kwRec.image){
+try{aiKeywords=JSON.parse(kwRec.image);}catch(e){}
+}
+// 过滤出真正的提交
+var subs=all.filter(function(s){
+return s.task_name!==SUCCESS_IMG_KEY&&s.task_name!==CONFIG_KEY&&s.task_name!==KEYWORDS_KEY&&s.status;
+});
+var stats={pending:subs.filter(function(x){return x.status==='pending'}).length,passed:subs.filter(function(x){return x.status==='passed'}).length,rejected:subs.filter(function(x){return x.status==='rejected'}).length};
+document.getElementById("statPending").textContent=stats.pending;
+document.getElementById("statPassed").textContent=stats.passed;
+document.getElementById("statRejected").textContent=stats.rejected;
+document.getElementById("tabPending").textContent="待审核 ("+stats.pending+")";
+renderList(subs);
+}
+
+function switchTab(tab){
+currentTab=tab;
+document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
+event.target.classList.add("active");
+if(cachedAll){
+var subs=cachedAll.filter(function(s){
+return s.task_name!==SUCCESS_IMG_KEY&&s.task_name!==CONFIG_KEY&&s.task_name!==KEYWORDS_KEY&&s.status;
+});
+renderList(subs);
+}else{
+document.getElementById("reviewList").innerHTML='<div style="text-align:center;color:#999;padding:40px;">加载中...</div>';
+}
+}
+
+function renderList(subs){
+subs=subs.filter(function(s){return s.status===currentTab});
+var list=document.getElementById("reviewList");
+if(subs.length===0){
+var msgs={pending:"暂无待审核的提交",passed:"暂无已通过的记录",rejected:"暂无已拒绝的记录"};
+list.innerHTML='<div style="text-align:center;color:#999;padding:40px;">'+msgs[currentTab]+'</div>';
+return;
+}
+var html="";
+for(var i=0;i<subs.length;i++){
+var sub=subs[i];
+var time=sub.created_at?new Date(sub.created_at).toLocaleString():'未知';
+html+='<div class="review-item">';
+html+='<div class="review-header"><span style="font-weight:700;">'+sub.task_name+'</span><span style="font-size:12px;color:#999;">'+time+'</span></div>';
+html+='<img src="'+sub.image+'" class="review-image" onclick="showImg(this.src)">';
+if(sub.status==='pending'){
+html+='<div class="review-actions">';
+html+='<button class="btn btn-green" onclick="review('+sub.id+',\'passed\')" style="flex:1;padding:10px;">✅ 通过</button>';
+html+='<button class="btn btn-red" onclick="review('+sub.id+',\'rejected\')" style="flex:1;padding:10px;">❌ 拒绝</button>';
+html+='</div>';
+}else{
+html+='<div style="margin-top:10px;font-size:13px;color:'+(sub.status==='passed'?"#28a745":"#dc3545")+';">审核结果：<strong>'+(sub.status==='passed'?"已通过":"已拒绝")+'</strong></div>';
+}
+html+='</div>';
+}
+list.innerHTML=html;
+}
+
+async function review(id,st){
+if(!confirm((st==='passed'?"通过":"拒绝")+"吗？"))return;
+try{
+var res=await fetch(SUPABASE_URL+'/rest/v1/submissions?id=eq.'+id,{
+method:'PATCH',
+headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+body:JSON.stringify({status:st})
+});
+if(res.ok){
+toast("已处理");
+// 更新缓存
+if(cachedAll){
+var idx=cachedAll.findIndex(function(s){return s.id===id});
+if(idx>=0)cachedAll[idx].status=st;
+}
+// 重新渲染
+var subs=cachedAll?cachedAll.filter(function(s){
+return s.task_name!==SUCCESS_IMG_KEY&&s.task_name!==CONFIG_KEY&&s.task_name!==KEYWORDS_KEY&&s.status;
+}):[];
+renderAdmin(subs);
+}else{toast("保存失败");}
+}catch(e){toast("错误");}
+}
+
+function showImg(src){
+modal("截图预览",'<img src="'+src+'" style="max-width:100%;border-radius:8px;"><button class="btn btn-gray" onclick="closeModal()" style="margin-top:15px;">关闭</button>');
+}
 </script>
 </body>
 </html>
